@@ -1,4 +1,26 @@
- # CarbonateEQ Class (S4) ####
+# CarbonateEQ Class (S4) ####
+ 
+#' Calculate Henry's constant for CO2
+#' 
+#' @export
+#' @description Calculates Henry's constant for CO2 dissolution in 
+#'    water based on the provided temperature
+#' @param tempK Temperature in Kelvin
+#' @param convertC Boolean value specifying whether the provided temperature
+#'    should be converted from Celsius to Kelvin (TRUE will convert the value,
+#'    FALSE will not convert the value) Default value is FALSE.
+#' @return Henry's constant for CO2 in moles per liter per atmosphere
+kHenryCO2fromTemp <- function(tempK, convertC = FALSE)
+{
+   if (convertC) {
+      tempK = tempK + 273.16;
+   }
+   return(
+      exp(-60.2409 + 
+         93.4517 * (100 / tempK)  + 
+         23.3585 * log(tempK / 100))
+         );
+}
 
 #' Class CarbonateEq
 #' 
@@ -94,7 +116,7 @@ setMethod(
           
          # Henry's constant for CO2 dissolution in freshwater
          # (Weiss 1974 - Marine Chemistry)  
-         kHenryCO2 = exp(93.4517 * 100 / tempK - 60.2409 + 23.3585 * log(tempK / 100));
+         kHenryCO2 = kHenryCO2fromTemp(tempK = tempK);
 
          return(callNextMethod(
             .Object,
@@ -272,9 +294,3 @@ setMethod(
          return( list(pH = pH, fCO2 = fCO2) );
       }
    );
-
-# Implementation notes:
-# 
-#    Use Henry's coefficient function from existing code?  Current code is 
-#    reproducing a calculation that is similar to exisiting libraries.  Check
-#    into normalizing to avoid the cut-and-paste antipattern.

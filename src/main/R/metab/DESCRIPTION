@@ -1,0 +1,14 @@
+Package: metab
+Version: 0.1
+Date: 2018-06-28
+Title: Metabolism Package
+Author: Rob Payn
+Maintainer: Rob Payn <rpayn@montana.edu>
+Depends:
+    R (>= 1.8.0),
+Suggests:
+Description: NA
+License: NA
+URL: NA
+BugReports: NA
+RoxygenNote: 6.0.1
