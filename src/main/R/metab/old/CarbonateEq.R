@@ -1,5 +1,3 @@
-library(R6)
-
 #' Calculate Henry's constant for CO2
 #' 
 #' Calculates Henry's constant for CO2 dissolution in 
@@ -23,131 +21,167 @@ kHenryCO2fromTemp <- function(tempK, convertC = FALSE)
          );
 }
 
-# CarbonateEQ Class (R6) ####
+# CarbonateEQ Class (reference) ####
 
 #' Class CarbonateEq
 #' 
-#' R6 class \code{CarbonateEq} defines a set of equilibrium
+#' Reference class \code{CarbonateEq} defines a set of equilibrium
 #' conditions for inorganic carbon at a given temperature 
 #' in freshwater
 #' 
-#' @export
-#' @usage \code{CarbonateEq$new(...)}
-#' @param ... Arguments passed to constructor \code{CarbonateEq$new(...)} will be 
-#'    passed generically to the method \code{\link{CarbonateEq_resetFromTemp}} 
-#'    when it is called to initialize the object. 
-#'    See documentation for \code{\link{CarbonateEq_resetFromTemp}} 
-#'    for description of arguments.
-#' @return The object of class \code{CarbonateEq} created
-#'    by the constructor
-CarbonateEq <- R6Class(
-   classname = "CarbonateEq",
-   public = list(
-      tempC = NULL,
-      tempK = NULL,
-      eConduct = NULL,
-      ionicStrength = NULL,
-      daviesParam = NULL,
-      daviesExponent = NULL,
-      activityCoeffH = NULL,
-      activityCoeffOH = NULL,
-      activityCoeffHCO3 = NULL,
-      activityCoeffCO3 = NULL,
-      kDissocH2CO3App = NULL,
-      kDissocHCO3App = NULL,
-      kDissocH2OApp = NULL,
-      kHenryCO2 = NULL,
-      initialize = function(...)
-         {
-            self$resetFromTemp(...);
-         }
+#' @exportClass CarbonateEq
+#' @seealso \code{\link{CarbonateEq_initialize}} for constructor
+
+CarbonateEq <- setRefClass(
+   Class = "CarbonateEq",
+   fields = c(
+      tempC = "numeric",
+      tempK = "numeric",
+      eConduct = "numeric",
+      ionicStrength = "numeric",
+      daviesParam = "numeric",
+      daviesExponent = "numeric",
+      activityCoeffH = "numeric",
+      activityCoeffOH = "numeric",
+      activityCoeffHCO3 = "numeric",
+      activityCoeffCO3 = "numeric",
+      kDissocH2CO3App = "numeric",
+      kDissocHCO3App = "numeric",
+      kDissocH2OApp = "numeric",
+      kHenryCO2 = "numeric"
       ),
    );
 
-# Method resetFromTemp ####
-
-#' Reset the carbonate equlibrium
+#' Constructor method 
+#' 
+#' Overrides the initialize method for the CarbonateEq reference class
 #'
-#' Resets equilibrium constants based on the provided temperature
-#'
-#' @name CarbonateEq_resetFromTemp
+#' @name CarbonateEq_initialize
 #' @param tempC Temperature in degrees Celsius
 #' @param eConduct Electrical conductivity in mS cm-1, default is set to zero
 #'    which will result in the ideal case of activity equal to concentration
 #' @param ionicStrength Ionic strength in mol L-1, default is set as a linear correlate
 #'    of electrical conductivity as suggested by Griffin and Jurinak
 #'    (1973 - Soil Science)
-#' @param daviesParam Parameter for Davies equation derivation, defaults to
+#' @param daviesParam Parameter for Davies equation derivation, defaults to 
 #'    \code{0.5092 + (tempC - 25) * 0.00085}
 #' @param daviesExponent Factor for exponent in Davies equation, defaults to
 #'    \code{(ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) - 0.3 * ionicStrength)}
-#' @return A named vector with 2 values: the previous temperature and the new temperature
-#' @aliases resetFromTemp.CarbonateEq
+#' @return The object of class \code{CarbonateEq} created
+#'      by the constructor
 NULL
 
-CarbonateEq$set(
-   which = "public",
-   name = "resetFromTemp",
-   value = function(
+CarbonateEq$methods(
+   initialize = function(
       tempC,
       tempK = tempC + 273.15,
       eConduct = 0,
       ionicStrength = 0.013 * eConduct,
       daviesParam = 0.5092 + (tempC - 25) * 0.00085,
-      daviesExponent = -daviesParam *
-         (ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) -
-             0.3 * ionicStrength)
+      daviesExponent = -daviesParam * 
+         (ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) - 
+              0.3 * ionicStrength)
       )
       {
-         prevTemp <- self$tempC;
-         
-         if (!is.nan(tempC))
-         {
-            self$tempC <- tempC;
-            self$tempK <- tempK;
-            self$eConduct <- eConduct;
-            self$ionicStrength <- ionicStrength;
-            self$daviesParam <- daviesParam;
-            self$daviesExponent <- daviesExponent;
-         }
-         
-         # Activitity coefficients from Davies equation
-         # based on square of ionic charge
-         self$activityCoeffH <- 10 ^ self$daviesExponent; # Charge +1
-         self$activityCoeffOH <- self$activityCoeffH; # Charge -1
-         self$activityCoeffHCO3 <- self$activityCoeffH; # Charge -1
-         self$activityCoeffCO3 <- 10 ^ (4 * self$daviesExponent); # Charge -2
-         
-         logTempK <- log(self$tempK);
-         
-         # Ideal and apparent dissociation constant for H2CO3
-         # (Millero 1979 - Geochimica et Cosmochimica Acta)
-         kDissocH2CO3 <- exp(290.9097 - 14554.21 / self$tempK - 45.0575 * logTempK);
-         self$kDissocH2CO3App <- kDissocH2CO3 /
-            (self$activityCoeffH * self$activityCoeffHCO3);
-         
-         # Ideal and apparent dissociation constant for HCO3
-         # (Millero 1979 - Geochimica et Cosmochimica Acta)
-         kDissocHCO3 <- exp(207.6548 - 11843.79 / self$tempK - 33.6485 * logTempK);
-         self$kDissocHCO3App <- kDissocHCO3 /
-            (self$activityCoeffH * self$activityCoeffCO3 / self$activityCoeffHCO3);
-         
-         # Ideal and apparent dissociation constant for freshwater
-         # (Millero 1995 - Geochimica et Cosmochimica Acta)
-         kDissocH2O <- exp(-13847.26 / self$tempK + 148.9802 - 23.6521 * logTempK);
-         self$kDissocH2OApp <- kDissocH2O /
-            (self$activityCoeffH * self$activityCoeffOH);
-         
-         self$kHenryCO2 <- kHenryCO2fromTemp(tempK = self$tempK);
-         
-         return(c(Previous_Temp = prevTemp, New_Temp = self$tempC));
+         newObject <- callSuper(
+            tempC = tempC,
+            tempK = tempK,
+            eConduct = eConduct,
+            ionicStrength = ionicStrength,
+            daviesParam = daviesParam,
+            daviesExponent = daviesExponent,
+            activityCoeffH = NaN,
+            activityCoeffOH = NaN,
+            activityCoeffHCO3 = NaN,
+            activityCoeffCO3 = NaN,
+            kDissocH2CO3App = NaN,
+            kDissocHCO3App = NaN,
+            kDissocH2OApp = NaN,
+            kHenryCO2 = NaN
+            );
+         newObject$resetFromTemp();
+
+         return(newObject);
       }
    );
 
-# Method getTotalAlk ####
+#' Reset the carbonate equlibrium 
+#' 
+#' Resets equilibrium constants based on the provided temperature
+#'
+#' @name CarbonateEq_resetFromTemp
+#' @param argtempC Temperature in degrees Celsius
+#' @param argeConduct Electrical conductivity in mS cm-1, default is set to zero
+#'    which will result in the ideal case of activity equal to concentration
+#' @param argionicStrength Ionic strength in mol L-1, default is set as a linear correlate
+#'    of electrical conductivity as suggested by Griffin and Jurinak
+#'    (1973 - Soil Science)
+#' @param argdaviesParam Parameter for Davies equation derivation, defaults to 
+#'    \code{0.5092 + (tempC - 25) * 0.00085}
+#' @param argdaviesExponent Factor for exponent in Davies equation, defaults to
+#'    \code{(ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) - 0.3 * ionicStrength)}
+#' @return A named vector with 2 values: the previous temperature and the new temperature
+NULL
+
+CarbonateEq$methods(
+   resetFromTemp = function(
+      argtempC = NaN,
+      argtempK = argtempC + 273.15,
+      argeConduct = 0,
+      argionicStrength = 0.013 * argeConduct,
+      argdaviesParam = 0.5092 + (argtempC - 25) * 0.00085,
+      argdaviesExponent = -argdaviesParam * 
+         (argionicStrength ^ 0.5 / (1 + argionicStrength ^ 0.5) - 
+             0.3 * argionicStrength)
+      )
+      {
+         prevTemp <- tempC;
+         
+         if (!is.nan(argtempC))
+         {
+            tempC <<- argtempC;
+            tempK <<- argtempK;
+            eConduct <<- argeConduct;
+            ionicStrength <<- argionicStrength;
+            daviesParam <<- argdaviesParam;
+            daviesExponent <<- argdaviesExponent;
+         }
+         
+         # Activitity coefficients from Davies equation 
+         # based on square of ionic charge
+         activityCoeffH <<- 10 ^ daviesExponent; # Charge +1
+         activityCoeffOH <<- activityCoeffH; # Charge -1
+         activityCoeffHCO3 <<- activityCoeffH; # Charge -1
+         activityCoeffCO3 <<- 10 ^ (4 * daviesExponent); # Charge -2
+         
+         logTempK <- log(tempK);
+         
+         # Ideal and apparent dissociation constant for H2CO3
+         # (Millero 1979 - Geochimica et Cosmochimica Acta)
+         kDissocH2CO3 <- exp(290.9097 - 14554.21 / tempK - 45.0575 * logTempK);
+         kDissocH2CO3App <<- kDissocH2CO3 /
+            (activityCoeffH * activityCoeffHCO3);
+         
+         # Ideal and apparent dissociation constant for HCO3
+         # (Millero 1979 - Geochimica et Cosmochimica Acta)
+         kDissocHCO3 <- exp(207.6548 - 11843.79 / tempK - 33.6485 * logTempK);
+         kDissocHCO3App <<- kDissocHCO3 /
+            (activityCoeffH * activityCoeffCO3 / activityCoeffHCO3);
+         
+         # Ideal and apparent dissociation constant for freshwater
+         # (Millero 1995 - Geochimica et Cosmochimica Acta)
+         kDissocH2O <- exp(-13847.26 / tempK + 148.9802 - 23.6521 * logTempK);
+         kDissocH2OApp <<- kDissocH2O /
+            (activityCoeffH * activityCoeffOH);
+         
+         kHenryCO2 <<- kHenryCO2fromTemp(tempK = tempK);
+         
+         return(c(Previous_Temp = prevTemp, New_Temp = tempC));
+      }
+   );
 
 #' Get the total alkalinity
-#'
+#' 
 #' Method to get the total alkalinity for a known
 #' equilibrium scenario based on a known dissolved inorganic carbon
 #' concentration and pH
@@ -160,27 +194,23 @@ CarbonateEq$set(
 #' @aliases getTotalAlk.CarbonateEq
 NULL
 
-CarbonateEq$set(
-   which = "public",
-   name = "getTotalAlk",
-   value = function(concDIC, pH)
+CarbonateEq$methods(
+   getTotalAlk = function(concDIC, pH)
       {
          concH = 10 ^ -pH;
-         concOH = self$kDissocH2OApp / concH;
+         concOH = kDissocH2OApp / concH;
          concCO2 = concDIC * (concH ^ 2) /
             ( concH ^ 2 +
-                 self$kDissocH2CO3App * concH +
-                 self$kDissocH2CO3App * self$kDissocHCO3App );
-         concHCO3 = concCO2 * self$kDissocH2CO3App / concH;
-         concCO3 = concHCO3 * self$kDissocHCO3App / concH;
+                 kDissocH2CO3App * concH +
+                 kDissocH2CO3App * kDissocHCO3App );
+         concHCO3 = concCO2 * kDissocH2CO3App / concH;
+         concCO3 = concHCO3 * kDissocHCO3App / concH;
          return(concHCO3 + 2 * concCO3 + concOH - concH);
       }
    );
 
-# Method optimizepH ####
-
 #' Optimize to infer pH
-#'
+#' 
 #' Method to perform the optimization necessary to get the pH for a known
 #' equilibrium scenario based on known dissolved inorganic carbon
 #' and total alkalinity
@@ -198,10 +228,8 @@ CarbonateEq$set(
 #' @aliases optimizepH.CarbonateEq
 NULL
 
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepH",
-   value = function(
+CarbonateEq$methods(
+   optimizepH = function(
       concDIC,
       totalAlk,
       tolerance = 1e-5,
@@ -211,7 +239,7 @@ CarbonateEq$set(
          optr <- optimize(
             f = function(pH)
                {
-                  return ( (totalAlk - self$getTotalAlk(concDIC, pH))^2 );
+                  return ( (totalAlk - getTotalAlk(concDIC, pH))^2 );
                },
             interval = range,
             tol = tolerance
@@ -220,10 +248,8 @@ CarbonateEq$set(
       }
    );
 
-# Method optimizepCO2 ####
-
 #' Optimize to infer pCO2
-#'
+#' 
 #' Method to calculate the pCO2 derived from
 #' the optimization necessary to get the pH for a known
 #' equilibrium scenario based on known dissolved inorganic carbon
@@ -244,28 +270,26 @@ CarbonateEq$set(
 #' @aliases optimizepCO2.CarbonateEq
 NULL
 
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepCO2",
-   value = function(
+CarbonateEq$methods(
+   optimizepCO2 = function(
       concDIC,
       totalAlk,
       tolerance = 1e-5,
       range = c(12, 2)
       )
       {
-         pH <- self$optimizepH(
+         pH <- optimizepH(
             concDIC = concDIC,
             totalAlk = totalAlk,
             tolerance = tolerance,
             range = range
             );
          concH <- 10 ^ -pH;
-         concCO2 <- concDIC * concH ^ 2 * 10 ^ (6 * self$daviesExponent) /
-            ( concH ^ 2 * 10 ^ (6 * self$daviesExponent) +
-               self$kDissocH2CO3App * concH * 10 ^ (4 * self$daviesExponent) +
-               self$kDissocH2CO3App * self$kDissocHCO3App );
-         fCO2 <- 1e6 * (concCO2 / self$kHenryCO2);
+         concCO2 <- concDIC * concH ^ 2 * 10 ^ (6 * daviesExponent) /
+            ( concH ^ 2 * 10 ^ (6 * daviesExponent) +
+                kDissocH2CO3App * concH * 10 ^ (4 * daviesExponent) +
+                kDissocH2CO3App * kDissocHCO3App );
+         fCO2 <- 1e6 * (concCO2 / kHenryCO2);
          return( list(pH = pH, fCO2 = fCO2) );
       }
    );

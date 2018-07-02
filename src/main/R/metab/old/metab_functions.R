@@ -333,13 +333,10 @@ oneStationMetabDoDic <- function(
       dic = numeric(length = dicPredLength)
       );
 
-   # Create the carbonate equilibrium object with the initial 
-   # temperature
-   carbonateEq <- CarbonateEq$new(tempC = temp[1]);
-   
    # Set the initial DIC concentration, pCO2, and fgas
    dicPred$dic[1] <- initialDIC[1];
-   dicPred$pCO2[1] <- carbonateEq$optimizepCO2(
+   dicPred$pCO2[1] <- optimizepCO2(
+      carbonateEq = CarbonateEq(tempC = temp[1]), 
       concDIC = initialDIC * 1e-6, 
       totalAlk = alkalinity * 1e-6
       )$fCO2;
@@ -356,8 +353,8 @@ oneStationMetabDoDic <- function(
          dicPred$fGas[i - 1];
       
       # Calculate pCO2 and fGas based on new DIC
-      carbonateEq$resetFromTemp(temp[i]);
-      dicPred$pCO2[i] <- carbonateEq$optimizepCO2(
+      dicPred$pCO2[i] <- optimizepCO2(
+         carbonateEq = CarbonateEq(tempC = temp[i]),
          concDIC = dicPred$dic[i] * 1e-6,
          totalAlk = alkalinity * 1e-6
          )$fCO2;
