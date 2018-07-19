@@ -1,7 +1,7 @@
 rm(list = ls());
 
-source(file = "./metab/R/CarbonateEq.R");
-source(file = "./metab/R/metab_functions.R");
+source(file = "./metab/debug.R");
+loadObjective(path = "./metab");
 
 # Read the data file that is providing sample PAR
 # and temperature data
@@ -35,9 +35,8 @@ initialDIC <- 2404.389;
 pCO2air <- 400; 
 alkalinity <- 2410;
 
-# Run the model forward to provide the basis for a
-# synthetic data set
-doPred <- oneStationMetabDoDic(
+# Define the model object to be optimized.
+model <- ModelOneStationMetabDoDic$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
@@ -47,63 +46,131 @@ doPred <- oneStationMetabDoDic(
    temp = doData$temp,
    par = par,
    initialDIC = initialDIC,
-   pCO2air = pCO2air, 
+   pCO2air = pCO2air,
    alkalinity = alkalinity
    );
+
+# Run the model forward to provide the basis for a
+# synthetic data set
+pred <- model$run();
 
 # create a dataframe of synthetic observations with normally
 # distributed random error.
 obsSynth <- data.frame(
-   do = doPred$do + 
-      rnorm(n = length(doPred$do), sd = knownsdDO),
-   pCO2 = doPred$pCO2 + 
-      rnorm(n = length(doPred$pCO2), sd = knownsdpCO2)
+   do = pred$do + 
+      rnorm(n = length(pred$do), sd = knownsdDO),
+   pCO2 = pred$pCO2 + 
+      rnorm(n = length(pred$pCO2), sd = knownsdpCO2)
    );
 
-# Define the model function to be optimized. The model function 
-# must have a simple parameter vector argument to be compatible 
-# for use with the nlmObjectiveValue function
-model <- function(params)
-{
-   dicPred <- oneStationMetabDoDic(
-      dailyGPP = params[1],
-      dailyER = params[2],
-      k600 = params[3],
-      airPressure = airPressure,
-      time = doData$time, 
-      initialDO = doData$dissolvedOxygen,
-      temp = doData$temp,
-      par = par, 
-      initialDIC = initialDIC,
-      pCO2air = pCO2air, 
-      alkalinity = alkalinity
-      );
-   return(list(
-      output = dicPred,
-      predict = data.frame(
-         do = dicPred$do,
-         pCO2 = dicPred$pCO2
-         )
-      ));
-}
+# Define the objective function to use in the optimization
+objFunc <- ObjFuncLogLikelihood$new(
+   model = model,
+   parameterProcessor = ParameterProcessorMetab$new(),
+   predictionProcessor = PredictionProcessorMetabDoDic$new(),
+   observation = obsSynth,
+   sd = c(knownsdDO, knownsdpCO2),
+   invert = TRUE
+   );
 
-# Infer metabolic parameter values by minimizing the value returned 
-# by the nlmObjectiveValue function. The model and objective function
-# used for the minimization are defined abstractly by the model function
-# passed to the modelFunc argument and the object function passed to the 
-# objectiveFunc argument.
-nlmr <- nlm(
-   f = nlmObjectiveValue,
-   p = c(
+# Infer metabolic parameter values by minimizing the value returned
+# by the objective function.
+optimr <- optim(
+   par = c(
       knownGPP,
       knownER,
       knownk600
       ),
-   modelFunc = model,
-   objectiveFunc = objLogLike,
-   obs = obsSynth,
-   sd = c(
-      knownsdDO,
-      knownsdpCO2
-      )
+   fn = objFunc$propose
    );
+
+# # Define the objective function to use in the optimization
+# objFunc <- ObjFuncLogLikelihood$new(
+#    model = model,
+#    parameterProcessor = ParameterProcessorMetab$new(),
+#    predictionProcessor = PredictionProcessorMetabDoDic$new(),
+#    observation = obsSynth,
+#    sd = c(NaN, NaN),
+#    invert = TRUE
+#    );
+# 
+# # Infer metabolic parameter values by minimizing the value returned
+# # by the objective function.
+# optimr <- optim(
+#    par = c(
+#       knownGPP,
+#       knownER,
+#       knownk600,
+#       knownsdDO,
+#       knownsdpCO2
+#       ),
+#    fn = objFunc$propose
+#    );
+
+objFunc$propose(optimr$par);
+
+windows(width = 8, height = 10);
+par(
+   mfrow = c(2, 1), 
+   mar = c(2.5, 4.5, 1, 2),
+   oma = c(2, 0, 0, 0)
+   );
+plot(
+   x = pred$time, 
+   y = obsSynth$do, 
+   ylab = expression(paste(
+      "[DO] (g ", m^-3, ")"
+      ))
+   );
+lines(
+   x = pred$time, 
+   y = pred$do
+   );
+lines(
+   x = model$output$time,
+   y = model$output$do,
+   lty = "dashed",
+   col = "red"
+   );
+plot(
+   x = pred$time, 
+   y = obsSynth$pCO2, 
+   ylab = expression(paste(
+      pCO[2], " (", mu, "atm)"
+      ))
+   );
+lines(
+   x = pred$time, 
+   y = pred$pCO2
+   );
+lines(
+   x = model$output$time,
+   y = model$output$pCO2,
+   lty = "dashed",
+   col = "red"
+   );
+mtext(
+   text = "Time",
+   side = 1,
+   outer = TRUE
+   );
+
+windows(width = 10, height = 10);
+plot(model$output$time, model$output$pCO2);
+par(new = TRUE);
+plot(model$output$time, model$output$dic);
+
+points(model$output$dic, model$output$dic);
+
+dTemp <- (model$output$temp[2:193] - model$output$temp[1:192]) / 
+   model$output$temp[1:192];
+dpCO2 <- (model$output$pCO2[2:193] - model$output$pCO2[1:192]) / 
+   model$output$pCO2[1:192];
+dDIC <- (model$output$dic[2:193] - model$output$dic[1:192]) / 
+   model$output$dic[1:192];
+revelle <- dpCO2 / dDIC;
+
+windows(width = 10, height = 10);
+plot(model$output$time, model$output$temp);
+par(new = TRUE);
+plot(model$output$time[1:192], revelle, ylim = c(-10,50));

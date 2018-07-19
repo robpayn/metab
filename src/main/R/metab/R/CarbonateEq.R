@@ -60,11 +60,110 @@ CarbonateEq <- R6Class(
       initialize = function(...)
          {
             self$resetFromTemp(...);
+         },
+      resetFromTemp = function(
+         tempC,
+         tempK = tempC + 273.15,
+         eConduct = 0,
+         ionicStrength = 0.013 * eConduct,
+         daviesParam = 0.5092 + (tempC - 25) * 0.00085,
+         daviesExponent = -daviesParam *
+            (ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) -
+                0.3 * ionicStrength)
+         )
+         {
+            prevTemp <- self$tempC;
+            
+            self$tempC <- tempC;
+            self$tempK <- tempK;
+            self$eConduct <- eConduct;
+            self$ionicStrength <- ionicStrength;
+            self$daviesParam <- daviesParam;
+            self$daviesExponent <- daviesExponent;
+
+            # Activitity coefficients from Davies equation
+            # based on square of ionic charge
+            self$activityCoeffH <- 10 ^ self$daviesExponent; # Charge +1
+            self$activityCoeffOH <- self$activityCoeffH; # Charge -1
+            self$activityCoeffHCO3 <- self$activityCoeffH; # Charge -1
+            self$activityCoeffCO3 <- 10 ^ (4 * self$daviesExponent); # Charge -2
+            
+            logTempK <- log(self$tempK);
+            
+            # Ideal and apparent dissociation constant for H2CO3
+            # (Millero 1979 - Geochimica et Cosmochimica Acta)
+            kDissocH2CO3 <- exp(290.9097 - 14554.21 / self$tempK - 45.0575 * logTempK);
+            self$kDissocH2CO3App <- kDissocH2CO3 /
+               (self$activityCoeffH * self$activityCoeffHCO3);
+            
+            # Ideal and apparent dissociation constant for HCO3
+            # (Millero 1979 - Geochimica et Cosmochimica Acta)
+            kDissocHCO3 <- exp(207.6548 - 11843.79 / self$tempK - 33.6485 * logTempK);
+            self$kDissocHCO3App <- kDissocHCO3 /
+               (self$activityCoeffH * self$activityCoeffCO3 / self$activityCoeffHCO3);
+            
+            # Ideal and apparent dissociation constant for freshwater
+            # (Millero 1995 - Geochimica et Cosmochimica Acta)
+            kDissocH2O <- exp(-13847.26 / self$tempK + 148.9802 - 23.6521 * logTempK);
+            self$kDissocH2OApp <- kDissocH2O /
+               (self$activityCoeffH * self$activityCoeffOH);
+            
+            self$kHenryCO2 <- kHenryCO2fromTemp(tempK = self$tempK);
+            
+            return(c(Previous_Temp = prevTemp, New_Temp = self$tempC));
+         },
+      getTotalAlk = function(concDIC, pH)
+         {
+            concH = 10 ^ -pH;
+            concOH = self$kDissocH2OApp / concH;
+            concCO2 = concDIC * (concH ^ 2) /
+               ( concH ^ 2 +
+                    self$kDissocH2CO3App * concH +
+                    self$kDissocH2CO3App * self$kDissocHCO3App );
+            concHCO3 = concCO2 * self$kDissocH2CO3App / concH;
+            concCO3 = concHCO3 * self$kDissocHCO3App / concH;
+            return(concHCO3 + 2 * concCO3 + concOH - concH);
+         },
+      optimizepH = function(
+         concDIC,
+         totalAlk,
+         tolerance = 1e-5,
+         range = c(12, 2)
+         )
+         {
+            optr <- optimize(
+               f = function(pH)
+                  {
+                     return ( (totalAlk - self$getTotalAlk(concDIC, pH))^2 );
+                  },
+               interval = range,
+               tol = tolerance
+               );
+            return(optr$minimum);
+         },
+      optimizepCO2 = function(
+         concDIC,
+         totalAlk,
+         tolerance = 1e-5,
+         range = c(12, 2)
+         )
+         {
+            pH <- self$optimizepH(
+               concDIC = concDIC,
+               totalAlk = totalAlk,
+               tolerance = tolerance,
+               range = range
+               );
+            concH <- 10 ^ -pH;
+            concCO2 <- concDIC * concH ^ 2 * 10 ^ (6 * self$daviesExponent) /
+               ( concH ^ 2 * 10 ^ (6 * self$daviesExponent) +
+                  self$kDissocH2CO3App * concH * 10 ^ (4 * self$daviesExponent) +
+                  self$kDissocH2CO3App * self$kDissocHCO3App );
+            fCO2 <- 1e6 * (concCO2 / self$kHenryCO2);
+            return( list(pH = pH, fCO2 = fCO2) );
          }
       ),
    );
-
-# Method resetFromTemp ####
 
 #' Reset the carbonate equlibrium
 #'
@@ -85,67 +184,6 @@ CarbonateEq <- R6Class(
 #' @aliases resetFromTemp.CarbonateEq
 NULL
 
-CarbonateEq$set(
-   which = "public",
-   name = "resetFromTemp",
-   value = function(
-      tempC,
-      tempK = tempC + 273.15,
-      eConduct = 0,
-      ionicStrength = 0.013 * eConduct,
-      daviesParam = 0.5092 + (tempC - 25) * 0.00085,
-      daviesExponent = -daviesParam *
-         (ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) -
-             0.3 * ionicStrength)
-      )
-      {
-         prevTemp <- self$tempC;
-         
-         if (!is.nan(tempC))
-         {
-            self$tempC <- tempC;
-            self$tempK <- tempK;
-            self$eConduct <- eConduct;
-            self$ionicStrength <- ionicStrength;
-            self$daviesParam <- daviesParam;
-            self$daviesExponent <- daviesExponent;
-         }
-         
-         # Activitity coefficients from Davies equation
-         # based on square of ionic charge
-         self$activityCoeffH <- 10 ^ self$daviesExponent; # Charge +1
-         self$activityCoeffOH <- self$activityCoeffH; # Charge -1
-         self$activityCoeffHCO3 <- self$activityCoeffH; # Charge -1
-         self$activityCoeffCO3 <- 10 ^ (4 * self$daviesExponent); # Charge -2
-         
-         logTempK <- log(self$tempK);
-         
-         # Ideal and apparent dissociation constant for H2CO3
-         # (Millero 1979 - Geochimica et Cosmochimica Acta)
-         kDissocH2CO3 <- exp(290.9097 - 14554.21 / self$tempK - 45.0575 * logTempK);
-         self$kDissocH2CO3App <- kDissocH2CO3 /
-            (self$activityCoeffH * self$activityCoeffHCO3);
-         
-         # Ideal and apparent dissociation constant for HCO3
-         # (Millero 1979 - Geochimica et Cosmochimica Acta)
-         kDissocHCO3 <- exp(207.6548 - 11843.79 / self$tempK - 33.6485 * logTempK);
-         self$kDissocHCO3App <- kDissocHCO3 /
-            (self$activityCoeffH * self$activityCoeffCO3 / self$activityCoeffHCO3);
-         
-         # Ideal and apparent dissociation constant for freshwater
-         # (Millero 1995 - Geochimica et Cosmochimica Acta)
-         kDissocH2O <- exp(-13847.26 / self$tempK + 148.9802 - 23.6521 * logTempK);
-         self$kDissocH2OApp <- kDissocH2O /
-            (self$activityCoeffH * self$activityCoeffOH);
-         
-         self$kHenryCO2 <- kHenryCO2fromTemp(tempK = self$tempK);
-         
-         return(c(Previous_Temp = prevTemp, New_Temp = self$tempC));
-      }
-   );
-
-# Method getTotalAlk ####
-
 #' Get the total alkalinity
 #'
 #' Method to get the total alkalinity for a known
@@ -159,25 +197,6 @@ CarbonateEq$set(
 #' @return Total alkalinity in charge molality
 #' @aliases getTotalAlk.CarbonateEq
 NULL
-
-CarbonateEq$set(
-   which = "public",
-   name = "getTotalAlk",
-   value = function(concDIC, pH)
-      {
-         concH = 10 ^ -pH;
-         concOH = self$kDissocH2OApp / concH;
-         concCO2 = concDIC * (concH ^ 2) /
-            ( concH ^ 2 +
-                 self$kDissocH2CO3App * concH +
-                 self$kDissocH2CO3App * self$kDissocHCO3App );
-         concHCO3 = concCO2 * self$kDissocH2CO3App / concH;
-         concCO3 = concHCO3 * self$kDissocHCO3App / concH;
-         return(concHCO3 + 2 * concCO3 + concOH - concH);
-      }
-   );
-
-# Method optimizepH ####
 
 #' Optimize to infer pH
 #'
@@ -197,30 +216,6 @@ CarbonateEq$set(
 #'    from DIC that matches the observed alkalinity provided
 #' @aliases optimizepH.CarbonateEq
 NULL
-
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepH",
-   value = function(
-      concDIC,
-      totalAlk,
-      tolerance = 1e-5,
-      range = c(12, 2)
-      )
-      {
-         optr <- optimize(
-            f = function(pH)
-               {
-                  return ( (totalAlk - self$getTotalAlk(concDIC, pH))^2 );
-               },
-            interval = range,
-            tol = tolerance
-            );
-         return(optr$minimum);
-      }
-   );
-
-# Method optimizepCO2 ####
 
 #' Optimize to infer pCO2
 #'
@@ -243,29 +238,3 @@ CarbonateEq$set(
 #'    Value of pCO2 is in units of microatmospheres.
 #' @aliases optimizepCO2.CarbonateEq
 NULL
-
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepCO2",
-   value = function(
-      concDIC,
-      totalAlk,
-      tolerance = 1e-5,
-      range = c(12, 2)
-      )
-      {
-         pH <- self$optimizepH(
-            concDIC = concDIC,
-            totalAlk = totalAlk,
-            tolerance = tolerance,
-            range = range
-            );
-         concH <- 10 ^ -pH;
-         concCO2 <- concDIC * concH ^ 2 * 10 ^ (6 * self$daviesExponent) /
-            ( concH ^ 2 * 10 ^ (6 * self$daviesExponent) +
-               self$kDissocH2CO3App * concH * 10 ^ (4 * self$daviesExponent) +
-               self$kDissocH2CO3App * self$kDissocHCO3App );
-         fCO2 <- 1e6 * (concCO2 / self$kHenryCO2);
-         return( list(pH = pH, fCO2 = fCO2) );
-      }
-   );
