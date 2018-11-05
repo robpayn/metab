@@ -1,5 +1,7 @@
 rm(list = ls());
 
+library(parallel);
+
 source(file = "./metab/debug.R");
 loadObjective(path = "./metab");
 
@@ -52,26 +54,60 @@ objFunc <- ObjFuncLogLikelihood$new(
    model = model,
    parameterProcessor = ParameterProcessorMetab$new(),
    predictionProcessor = PredictionProcessorMetabDo$new(),
-   synthErrorProcessor = SynthErrorNormal$new(mean = list(do = 0), sd = list(do =knownsdDO)),
+   synthErrorProcessor = SynthErrorNormal$new(
+      mean = list(do = 0), 
+      sd = list(do =knownsdDO)
+      ),
    sd = knownsdDO,
    invert = TRUE
    );
 
-objFunc$realize();
+realize <- function(x, objFunc, par) {
+   
+   objFunc$realize();
 
-# Infer metabolic parameter values by minimizing the value returned 
-# by the objective function.
-optimr <- optim(
+   # Infer metabolic parameter values by minimizing the value returned 
+   # by the objective function.
+   optimr <- optim(
+      par = par,
+      fn = objFunc$propose
+   );
+   return(optimr$par);
+   
+}
+
+# timerS <- Sys.time();
+# ensemble <- sapply(
+#    X = numeric(length = 2),
+#    FUN = realize,
+#    objFunc = objFunc,
+#    par = c(
+#       knownGPP,
+#       knownER,
+#       knownk600
+#       )
+#    );
+# timerS <- Sys.time() - timerS;
+
+timerP <- Sys.time();
+cluster <- makeCluster(spec = 5);
+ensemble <- parSapply(
+   cl = cluster,
+   X = numeric(length = 1000),
+   FUN = realize,
+   objFunc = objFunc,
    par = c(
       knownGPP,
       knownER,
       knownk600
-      ),
-   fn = objFunc$propose
+      )
    );
+stopCluster(cl = cluster);
+timerP <- Sys.time() - timerP;
 
 # Run the model with the best fit parameters
-objFunc$propose(optimr$par);
+objFunc$realize();
+objFunc$propose(ensemble[,1]);
 
 windows(width = 10, height = 10);
 par(

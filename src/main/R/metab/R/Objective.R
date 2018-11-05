@@ -30,7 +30,7 @@ ParameterProcessor <- R6Class(
       process = function(model, params)
          {
             stop("Abstract function 'ParameterProcessor.process' 
-                 has not been implemented. by a subclass");
+                 has not been implemented");
          }
       )
    );
@@ -43,7 +43,49 @@ PredictionProcessor <- R6Class(
       process = function(model)
          {
             stop("Abstract function 'PredictionProcessor.process' 
-                 has not been implemented. by a subclass");
+                 has not been implemented");
+         }
+      )
+   );
+
+# Class SynthErrorProcessor ####
+
+SynthErrorProcessor <- R6Class(
+   classname = "SynthErrorProcessor",
+   public = list(
+      process = function(objFunc)
+         {
+            stop("Abstract function 'SynthErrorProcessor.process' 
+                    has not been implemented");
+         }
+      )
+   );
+
+# Class SynthErrorNormal ####
+
+SynthErrorNormal <- R6Class(
+   classname = "SynthErrorNormal",
+   inherit = SynthErrorProcessor,
+   public = list(
+      mean = NULL,
+      sd = NULL,
+      initialize = function(mean, sd)
+         {
+            self$mean <- mean;
+            self$sd <- sd;
+         },
+      process = function(objFunc)
+         {
+            objFunc$observation <- data.frame(mapply(
+               FUN = function(pred, mean, sd) 
+                  {
+                     return(pred + rnorm(n = nrow(objFunc$synthPrediction), mean = mean, sd = sd));
+                  }, 
+               pred = objFunc$synthPrediction,
+               mean = self$mean,
+               sd = self$sd,
+               SIMPLIFY = FALSE
+               ));
          }
       )
    );
@@ -73,28 +115,41 @@ ObjectiveFunction <- R6Class(
       model = NULL,
       prediction = NULL,
       predictionProcessor = NULL,
+      synthPrediction = NULL,
       observation = NULL,
+      synthErrorProcessor = NULL,
       value = NULL,
       initialize = function(
          model,
          parameterProcessor,
          predictionProcessor,
-         observation
+         synthErrorProcessor = NULL,
+         observation = NULL
          ) 
          {
             self$model <- model;
             self$parameterProcessor <- parameterProcessor;
             self$predictionProcessor <- predictionProcessor;
             self$observation <- observation;
+            self$synthErrorProcessor <- synthErrorProcessor;
+            if (!is.null(self$synthErrorProcessor)) {
+               self$model$run();
+               self$prediction <- self$predictionProcessor$process(self$model);
+               self$synthPrediction <- self$prediction;
+            }
          },
       propose = function(params)
          {
             self$params <- params;
-            self$parameterProcessor$process(model, params);
+            self$parameterProcessor$process(model = self$model, params = params);
             self$model$run();
-            self$prediction <- self$predictionProcessor$process(self$model);
+            self$prediction <- self$predictionProcessor$process(model = self$model);
             self$value <- self$compare(params);
             return(self$value);
+         },
+      realize = function()
+         {
+            self$synthErrorProcessor$process(objFunc = self);
          },
       compare = function(params) 
          {

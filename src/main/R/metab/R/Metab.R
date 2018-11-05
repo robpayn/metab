@@ -30,10 +30,10 @@ densityWater <- function(temp)
 #'    in grams per cubic meter
 #' @details Vectors for temperature and air pressure are assumed 
 #'    to be of the same length, or values will be reused
-doSat <- function(temp, airPressure) 
+doSat <- function(temp, airPressure, densityWaterFunc) 
 {
    normTemp <- log((298.15 - temp) / (273.15 + temp));
-   doSat <- 0.032 * densityWater(temp) *
+   doSat <- 0.032 * densityWaterFunc(temp) *
       exp(
          5.80871 +
             3.20291 * normTemp +
@@ -172,6 +172,9 @@ ModelOneStationMetabDo <- R6Class(
       parTotal = NULL, 
       timeRange = NULL,
       dt = NULL,
+      doSatFunc = NULL,
+      densityWaterFunc = NULL,
+      kSchmidtFunc = NULL,
       initialize = function(
          dailyGPP, 
          dailyER, 
@@ -184,7 +187,10 @@ ModelOneStationMetabDo <- R6Class(
          timeStepCount = NA, 
          timePar = time,
          parTotal = NA, 
-         timeRange = c(time[1], time[length(time)])
+         timeRange = c(time[1], time[length(time)]),
+         doSatFunc = doSat,
+         densityWaterFunc = densityWater,
+         kSchmidtFunc = kSchmidt
          ) 
          {
             self$dailyGPP <- dailyGPP; 
@@ -199,6 +205,9 @@ ModelOneStationMetabDo <- R6Class(
             self$timePar <- timePar;
             self$parTotal <- parTotal; 
             self$timeRange <- timeRange;
+            self$doSatFunc <- doSatFunc;
+            self$densityWaterFunc <- densityWaterFunc;
+            self$kSchmidtFunc <- kSchmidtFunc;
             
             # Interpolates temperature and PAR data to new time step 
             # if the time step is adjusted
@@ -237,11 +246,11 @@ ModelOneStationMetabDo <- R6Class(
          {
             # Calculates the saturated oxygen concentration for the 
             # provided temperatures and air pressure
-            doSat <- doSat(self$temp, self$airPressure) ;
+            doSat <- self$doSatFunc(self$temp, self$airPressure, self$densityWaterFunc) ;
            
             # Calculate the temperature adjusted gas exchange rate from 
             # the k600 rate at a Schmidt number of 600
-            k <- kSchmidt(self$temp, self$k600);
+            k <- self$kSchmidtFunc(self$temp, self$k600);
            
             # specifies length to use for vectors and the data frame based on the length 
             # of time vector
@@ -342,28 +351,33 @@ ModelOneStationMetabDoDic <- R6Class(
       alkalinity = NULL,
       RQ = NULL, 
       PQ = NULL,
+      carbonateEq = NULL,
+      kHenryCO2fromTempFunc = NULL,
       initialize = function(
          ..., 
          initialDIC, 
          pCO2air, 
          alkalinity,
          RQ = 0.85, 
-         PQ = 1.22
+         PQ = 1.22,
+         kHenryCO2fromTempFunc = kHenryCO2fromTemp
          ) 
          {
             super$initialize(...);
-            self$initialDIC = initialDIC;
-            self$pCO2air = pCO2air;
-            self$alkalinity = alkalinity;
-            self$RQ = RQ;
-            self$PQ = PQ;
+            self$carbonateEq <- CarbonateEq$new(tempC = self$temp[1]);
+            self$initialDIC <- initialDIC;
+            self$pCO2air <- pCO2air;
+            self$alkalinity <- alkalinity;
+            self$RQ <- RQ;
+            self$PQ <- PQ;
+            self$kHenryCO2fromTempFunc <- kHenryCO2fromTempFunc;
          },
       run = function()
          {
             # Run the superclass one station metabolism model for DO
             super$run();
            
-            kH <- kHenryCO2fromTemp(
+            kH <- self$kHenryCO2fromTempFunc(
                tempK = self$temp, 
                convertC = TRUE
                );
@@ -384,11 +398,11 @@ ModelOneStationMetabDoDic <- R6Class(
          
             # Create the carbonate equilibrium object with the initial 
             # temperature
-            carbonateEq <- CarbonateEq$new(tempC = self$temp[1]);
+            self$carbonateEq$resetFromTemp(tempC = self$temp[1]);
             
             # Set the initial DIC concentration, pCO2, and fgas
             self$output$dic[1] <- self$initialDIC[1];
-            self$output$pCO2[1] <- carbonateEq$optimizepCO2(
+            self$output$pCO2[1] <- self$carbonateEq$optimizepCO2(
                concDIC = self$initialDIC * 1e-6, 
                totalAlk = self$alkalinity * 1e-6
                )$fCO2;
@@ -405,8 +419,8 @@ ModelOneStationMetabDoDic <- R6Class(
                   self$output$fGas[i - 1];
                
                # Calculate pCO2 and fGas based on new DIC
-               carbonateEq$resetFromTemp(self$temp[i]);
-               optim <- carbonateEq$optimizepCO2(
+               self$carbonateEq$resetFromTemp(tempC = self$temp[i]);
+               optim <- self$carbonateEq$optimizepCO2(
                   concDIC = self$output$dic[i] * 1e-6,
                   totalAlk = self$alkalinity * 1e-6
                   );

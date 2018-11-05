@@ -57,8 +57,10 @@ CarbonateEq <- R6Class(
       kDissocHCO3App = NULL,
       kDissocH2OApp = NULL,
       kHenryCO2 = NULL,
-      initialize = function(...)
+      kHenryCO2fromTempFunc = NULL,
+      initialize = function(kHenryCO2fromTempFunc = kHenryCO2fromTemp, ...)
          {
+            self$kHenryCO2fromTempFunc <- kHenryCO2fromTempFunc;
             self$resetFromTemp(...);
          },
       resetFromTemp = function(
@@ -108,7 +110,7 @@ CarbonateEq <- R6Class(
             self$kDissocH2OApp <- kDissocH2O /
                (self$activityCoeffH * self$activityCoeffOH);
             
-            self$kHenryCO2 <- kHenryCO2fromTemp(tempK = self$tempK);
+            self$kHenryCO2 <- self$kHenryCO2fromTempFunc(tempK = self$tempK);
             
             return(c(Previous_Temp = prevTemp, New_Temp = self$tempC));
          },
