@@ -79,24 +79,24 @@ realize <- function(x, objFunc, par) {
    
 }
 
-# timerS <- Sys.time();
-# ensemble <- sapply(
-#    X = numeric(length = 2),
-#    FUN = realize,
-#    objFunc = objFunc,
-#    par = c(
-#       knownGPP,
-#       knownER,
-#       knownk600
-#    )
-# );
-# timerS <- Sys.time() - timerS;
+timerS <- Sys.time();
+ensemble <- sapply(
+   X = numeric(length = 5),
+   FUN = realize,
+   objFunc = objFunc,
+   par = c(
+      knownGPP,
+      knownER,
+      knownk600
+   )
+);
+timerS <- Sys.time() - timerS;
 
 timerP <- Sys.time();
-cluster <- makeCluster(spec = 2);
-ensemble <- parSapply(
+cluster <- makeCluster(spec = 4);
+ensembleP <- parSapply(
    cl = cluster,
-   X = numeric(length = 2),
+   X = numeric(length = 5),
    FUN = realize,
    objFunc = objFunc,
    par = c(

@@ -1,4 +1,43 @@
 library(R6);
+library(MASS);
+
+# Class RandomVariable (R6) ####
+
+RandomVariable <- R6Class(
+   classname = "RandomVariable",
+   public = list(
+      density = function(val, log)
+         {
+            stop("Abstract function 'density' has not been implemented");   
+         }
+      )
+   );
+
+# Class RVUniform (R6) ####
+
+RVUniform <- R6Class(
+   classname = "RVUniform",
+   inherit = RandomVariable,
+   public = list(
+      min = NULL,
+      max = NULL,
+      initialize = function(min, max)
+         {
+            self$min <- min;
+            self$max <- max;
+         },
+      density = function(val, log = FALSE)
+         {
+            return(dunif(
+               x = val, 
+               min = self$min,
+               max = self$max,
+               log = log
+               ));
+         }
+      )
+   );
+
 
 # Class Model (R6) ####
 
@@ -183,12 +222,12 @@ ObjFuncLogLikelihood <- R6Class(
    inherit = ObjectiveFunction,
    public = list(
       sd = NULL,
-      invert = NULL,
-      initialize = function(..., sd, invert = FALSE)
+      negate = NULL,
+      initialize = function(..., sd, negate = FALSE)
          {
             super$initialize(...);
             self$sd <- sd;
-            self$invert <- invert;
+            self$negate <- negate;
          },
       compare = function(params)
          {
@@ -209,7 +248,7 @@ ObjFuncLogLikelihood <- R6Class(
                   log = TRUE
                   ))
             }
-            if (self$invert) {
+            if (self$negate) {
                return(-logLike);
             } else {
                return(logLike);
@@ -230,3 +269,319 @@ ObjFuncLogLikelihood <- R6Class(
 #' @return The negative of the log likelihood from the comparison of
 #'    model prediction with observations
 NULL
+
+# Class BayesLogLikelihood (R6) ####
+
+#' Bayes posterior likelihood objective function class
+#' 
+#' Provides the tools for calculating a Bayes posterior 
+#' likelihood value for the comparison of a model prediction and
+#' observations. The Bayes likelihood is calculated by adding
+#' the summed log likelihood from prior distributions of
+#' parameters to the log likelihood of a provided objective 
+#' function.
+#' 
+#' @export
+#' @usage \code{BayesLogLikelihood$new(...)}
+#' @param paramDists A list of random variables representing the prior
+#'    prior probabilites for the parameters being estimated
+#' @param baseObjFunc The objective function that will calculate the 
+#'    fit metric (most like a log likelihood) that will be added to the
+#'    sum of the prior log likelihoods to generate the overall objective
+#'    function value
+#' @param negate Optional switch to negate the objective function value
+#'    to adjust for algorthims that minimize or maximize objective funciton
+#'    values
+#' @return The object of class \code{BayesLogLikelihood} created
+#'    by the constructor
+BayesLogLikelihood <- R6Class(
+   classname = "BayesLogLikelihood",
+   inherit = ObjectiveFunction,
+   public = list(
+      paramDists = NULL,
+      baseObjFunc = NULL,
+      logPriors = NULL,
+      negate = NULL,
+      initialize = function(
+         paramDists, 
+         baseObjFunc, 
+         negate = FALSE
+         ) 
+         {
+            # Initialize the super class
+            # Models and processors are not
+            # required because they are handled
+            # by the base objective function
+            super$initialize(
+               model = NULL,
+               parameterProcessor = NULL,
+               predictionProcessor = NULL,
+               );
+         
+            # Set the values of attributes based on
+            # arguments to the constructor
+            self$paramDists <- paramDists;
+            self$baseObjFunc <- baseObjFunc;
+            self$negate <- negate;
+         },
+      propose = function(params)
+         {
+            # Override the implementation of propose to allow for
+            # operation of the base objective function calculations
+            self$params <- params;
+            self$baseObjFunc$propose(params);
+            self$value <- self$compare(params);
+            return(self$value);
+         },
+      realize = function()
+         {
+            # Override the implementation of realize to allow for
+            # operation of the base objective function calculations
+            self$baseObjFunc$realize();
+            self$observation = self$baseObjFunc$observation;
+         },
+      compare = function(params)
+         {
+            # Calculate the log of the prior likelihoods
+            self$logPriors <- mapply(
+               FUN = function(paramDist, param)
+                  {
+                     return(paramDist$density(param, log = TRUE));   
+                  },
+               paramDist = self$paramDists,
+               param = params
+               );
+            
+            # Sum the priors with the result from the base objective
+            # function (depending on value of negate switch)
+            if (self$negate) {
+               return(self$baseObjFunc$value - sum(self$logPriors));
+            } else {
+               return(self$baseObjFunc$value + sum(self$logPriors));
+            }
+         }
+      )
+   );
+
+# Class BayesAMMCMCSampler (R6) ####
+
+#' A Bayesian Adaptive Metropolis Markov Chain Monte Carlo Sampler
+#' 
+#' Provides the tools for executing a Bayesian optimization using a
+#' Markov Chain sampler with an adaptive covariance matrix to determine
+#' the step size. The Metropolis algorith is used to determine whether
+#' a proposed parameter set is accepted into the ensemble estimate of
+#' the posterior distributions of parameter estimates.
+#' 
+#' @export
+#' @usage \code{BayesAMMCMCSampler$new(...)}
+#' @param baseObjFunc The objective function used to calculate the base
+#'    likelihood.  The sum of the log prior likelihoods are added to this
+#'    to generate the overall value of the Bayesian objective function
+#' @param initialParams A vector with initial values for the parameter 
+#'    being estimated
+#'    (initial location in parameter space for the Markov Chain)
+#' @param burninStepSD The standard deviations used to stochastically 
+#'    constrain Markov Chain step sizes during the burnin phase
+#' @param burninRealizations Number of realizations for the burnin phase
+#' @param staticStepSD The standard deviations used to stochastically
+#'    constrain Markov Chain step sizes during the static Metropolis
+#'    phase.  By default this will be the same as burninStepSD.
+#' @param staticRealizations Number of realizations for the static 
+#'    Metropolis phase
+#' @param adaptiveRealizations Number of realizations for the phase
+#'    where the covariance used to constrain Markov Chain step size is
+#'    adapted according to the covariance of previous accepted parameter
+#'    sets in the ensemble
+#' @param adaptiveCovarianceFactor An adaptive covariance factor (scalar) 
+#'    which is multiplied by the raw covariance of the parameter ensemble.
+#'    This can be used to adjust for the acceptance rate during the
+#'    adaptive phase. By default this is set to 1.
+#' @param tinyIdentFactor The value added the diagonal of the covariance
+#'    matrix to preven zero values.  By default this is 1e-20.
+#' @return The object of class \code{BayesAMMCMCSampler} created
+#'    by the constructor
+BayesAMMCMCSampler <- R6Class(
+   classname = "AMMCMCSampler",
+   public = list(
+      bayesObjFunc = NULL,
+      initialParams = NULL,
+      burninRealizations = NULL,
+      startCovarianceIndex = NULL,
+      staticRealizations = NULL,
+      totalStaticRealizations = NULL,
+      adaptiveRealizations = NULL,
+      totalRealizations = NULL,
+      adaptiveCovarianceFactor = NULL,
+      paramSamples = NULL,
+      paramProposed = NULL,
+      likeSamples = NULL,
+      burninStepSD = NULL,
+      staticStepSD = NULL,
+      tinyIdentFactor = NULL,
+      initialize = function(
+         bayesObjFunc, 
+         initialParams, 
+         burninStepSD,
+         burninRealizations,
+         staticStepSD = burninStepSD,
+         staticRealizations,
+         adaptiveRealizations,
+         adaptiveCovarianceFactor = 1,
+         tinyIdentFactor = 1e-20
+         )
+         {
+            # Assign attributes according to arguments
+            self$bayesObjFunc <- bayesObjFunc;   
+            self$initialParams <- initialParams;
+            self$burninStepSD <- burninStepSD;
+            self$burninRealizations <- burninRealizations;
+            self$staticStepSD <- staticStepSD;
+            self$staticRealizations <- staticRealizations;
+            self$adaptiveRealizations <- adaptiveRealizations;
+            self$adaptiveCovarianceFactor <- adaptiveCovarianceFactor;
+            self$tinyIdentFactor <- tinyIdentFactor;
+            
+            # Derive attributes for indexing phases of AMMCMC algorithm
+            self$startCovarianceIndex <- burninRealizations + 1;
+            self$totalStaticRealizations <- 
+               self$burninRealizations + self$staticRealizations;
+            self$totalRealizations <-
+               self$totalStaticRealizations + self$adaptiveRealizations;
+            
+            # Create the matrix for the parameter samples and
+            # populate the first row
+            self$paramSamples <- matrix(
+               nrow = self$totalRealizations, 
+               ncol = length(initialParams)
+               );
+            colnames(self$paramSamples) <- names(initialParams);
+            self$paramSamples[1,] <- initialParams;
+
+            # Create the matrix for the parameters proposed and
+            # populate the first row
+            self$paramProposed <- matrix(
+               nrow = self$totalRealizations, 
+               ncol = length(initialParams)
+               );
+            colnames(self$paramProposed) <- names(initialParams);
+            self$paramProposed[1,] <- initialParams;
+
+            # Create the data frame for the likelihood ensemble and
+            # populate the first row
+            self$likeSamples <- data.frame(
+               posterior = numeric(length = self$totalRealizations),
+               likelihood = numeric(length = self$totalRealizations),
+               wasAccepted = logical(length = self$totalRealizations)
+               );
+            self$bayesObjFunc$propose(self$initialParams);
+            self$likeSamples$posterior[1] <- self$bayesObjFunc$value;
+            self$likeSamples$likelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
+            self$likeSamples$wasAccepted[1] <- TRUE;
+         },
+      optimize = function()
+         {
+            numParams = ncol(self$paramSamples);
+            tinyIdent = 
+               diag(numParams) * 
+               self$tinyIdentFactor * 
+               self$adaptiveCovarianceFactor;
+            
+            # Start the static convariance burnin phase
+            loop <- 2:self$burninRealizations;
+            for(realizationCount in loop) {
+               # Take a Markov Chain step in parameter space based on a
+               # static covariance and propose the parameter set to the
+               # Bayesian criterion
+               self$paramProposed[realizationCount,] <- 
+                  self$paramSamples[(realizationCount - 1),] +
+                  rnorm(
+                     n = numParams,
+                     mean = 0,
+                     sd = self$burninStepSD
+                  );
+               self$propose(realizationCount);
+            }
+            
+            # Start the static covariance Metropolis phase
+            loop <- (self$burninRealizations + 1):self$totalStaticRealizations;
+            for(realizationCount in loop) {
+               # Take a Markov Chain step in parameter space based on a
+               # static covariance and propose the parameter set to the
+               # Bayesian criterion
+               self$paramProposed[realizationCount,] <- 
+                  self$paramSamples[(realizationCount - 1),] +
+                  rnorm(
+                     n = numParams,
+                     mean = 0,
+                     sd = self$staticStepSD
+                     );
+               self$propose(realizationCount);
+            }
+            
+            # Start the adaptive covariance Metropolis phase
+            loop <- (self$totalStaticRealizations + 1):self$totalRealizations;
+            for(realizationCount in loop) {
+               
+               # Adapt the covariance matrix based on the current parameter
+               # ensemble
+               covarianceIndeces <- 
+                  self$startCovarianceIndex:(realizationCount - 1);
+               covarianceMatrix <- 
+                  cov(self$paramSamples[covarianceIndeces,]) *
+                  self$adaptiveCovarianceFactor +
+                  tinyIdent;
+               
+               # Take a Markov Chain step in parameter space based on an
+               # adapted covariance and propose the parameter set to the
+               # Bayesian criterion
+               self$paramProposed[realizationCount,] <- 
+                  self$paramSamples[(realizationCount - 1),] +
+                  mvrnorm(
+                     n = 1,
+                     mu = rep(0, numParams),
+                     Sigma = covarianceMatrix
+                  );
+               self$propose(realizationCount);
+            }
+         },
+      propose = function(index)
+         {
+            # Determine the difference in posterior likelihood
+            # between proposed parameter set and the previous
+            # Markov Chain step
+            posteriorProposed <-
+               self$bayesObjFunc$propose(self$paramProposed[index,]);
+            if(is.infinite(posteriorProposed)) {
+               deltaPosterior <- 0;
+            } else {
+               deltaPosterior <- exp(
+                  posteriorProposed - 
+                  self$likeSamples$posterior[index - 1]
+                  );
+            }
+            
+            # Record results of current realization depending on whether
+            # proposed parameter set is accepted or rejected relative to
+            # previous Markov Chain step
+            if(runif(n = 1) < deltaPosterior) {
+               # Accept the proposed parameters
+               self$likeSamples$wasAccepted[index] <- TRUE;
+               self$paramSamples[index,] <- self$paramProposed[index,];
+               self$likeSamples$posterior[index] <- 
+                  self$bayesObjFunc$value;
+               self$likeSamples$likelihood[index] <- 
+                  self$bayesObjFunc$baseObjFunc$value;
+            } else {
+               # Reject the proposed parameters
+               self$likeSamples$wasAccepted[index] <- FALSE;
+               self$paramSamples[index,] <- 
+                  self$paramSamples[(index - 1),];
+               self$likeSamples$posterior[index] <- 
+                  self$likeSamples$posterior[index - 1];
+               self$likeSamples$likelihood[index] <- 
+                  self$likeSamples$likelihood[index - 1];
+            }
+         }
+      )
+   );
