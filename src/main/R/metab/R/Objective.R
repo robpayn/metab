@@ -38,6 +38,30 @@ RVUniform <- R6Class(
       )
    );
 
+# Class RVNormal (R6) ####
+
+RVNormal <- R6Class(
+   classname = "RVNormal",
+   inherit = RandomVariable,
+   public = list(
+      mean = NULL,
+      sd = NULL,
+      initialize = function(mean, sd)
+         {
+            self$mean <- mean;
+            self$sd <- sd;
+         },
+      density = function(val, log = FALSE)
+         {
+            return(dnorm(
+               x = val, 
+               mean = self$mean,
+               sd = self$sd,
+               log = log
+               ));
+         }
+      )
+   );
 
 # Class Model (R6) ####
 
@@ -313,7 +337,7 @@ BayesLogLikelihood <- R6Class(
             # required because they are handled
             # by the base objective function
             super$initialize(
-               model = NULL,
+               model = baseObjFunc$model,
                parameterProcessor = NULL,
                predictionProcessor = NULL,
                );
@@ -323,6 +347,8 @@ BayesLogLikelihood <- R6Class(
             self$paramDists <- paramDists;
             self$baseObjFunc <- baseObjFunc;
             self$negate <- negate;
+            
+            self$synthPrediction <- baseObjFunc$synthPrediction;
          },
       propose = function(params)
          {
@@ -381,12 +407,12 @@ BayesLogLikelihood <- R6Class(
 #' @param initialParams A vector with initial values for the parameter 
 #'    being estimated
 #'    (initial location in parameter space for the Markov Chain)
-#' @param burninStepSD The standard deviations used to stochastically 
+#' @param burninCovariance The standard deviations used to stochastically 
 #'    constrain Markov Chain step sizes during the burnin phase
 #' @param burninRealizations Number of realizations for the burnin phase
-#' @param staticStepSD The standard deviations used to stochastically
+#' @param staticCovariance The standard deviations used to stochastically
 #'    constrain Markov Chain step sizes during the static Metropolis
-#'    phase.  By default this will be the same as burninStepSD.
+#'    phase.  By default this will be the same as burninCovariance.
 #' @param staticRealizations Number of realizations for the static 
 #'    Metropolis phase
 #' @param adaptiveRealizations Number of realizations for the phase
@@ -416,15 +442,16 @@ BayesAMMCMCSampler <- R6Class(
       paramSamples = NULL,
       paramProposed = NULL,
       likeSamples = NULL,
-      burninStepSD = NULL,
-      staticStepSD = NULL,
+      burninCovariance = NULL,
+      staticCovariance = NULL,
       tinyIdentFactor = NULL,
+      adaptiveCovariance = NULL,
       initialize = function(
          bayesObjFunc, 
          initialParams, 
-         burninStepSD,
+         burninCovariance,
          burninRealizations,
-         staticStepSD = burninStepSD,
+         staticCovariance = burninCovariance,
          staticRealizations,
          adaptiveRealizations,
          adaptiveCovarianceFactor = 1,
@@ -434,9 +461,9 @@ BayesAMMCMCSampler <- R6Class(
             # Assign attributes according to arguments
             self$bayesObjFunc <- bayesObjFunc;   
             self$initialParams <- initialParams;
-            self$burninStepSD <- burninStepSD;
+            self$burninCovariance <- burninCovariance;
             self$burninRealizations <- burninRealizations;
-            self$staticStepSD <- staticStepSD;
+            self$staticCovariance <- staticCovariance;
             self$staticRealizations <- staticRealizations;
             self$adaptiveRealizations <- adaptiveRealizations;
             self$adaptiveCovarianceFactor <- adaptiveCovarianceFactor;
@@ -495,11 +522,11 @@ BayesAMMCMCSampler <- R6Class(
                # Bayesian criterion
                self$paramProposed[realizationCount,] <- 
                   self$paramSamples[(realizationCount - 1),] +
-                  rnorm(
-                     n = numParams,
-                     mean = 0,
-                     sd = self$burninStepSD
-                  );
+                  mvrnorm(
+                     n = 1,
+                     mu = rep(0, numParams),
+                     Sigma = self$burninCovariance
+                     );
                self$propose(realizationCount);
             }
             
@@ -511,10 +538,10 @@ BayesAMMCMCSampler <- R6Class(
                # Bayesian criterion
                self$paramProposed[realizationCount,] <- 
                   self$paramSamples[(realizationCount - 1),] +
-                  rnorm(
-                     n = numParams,
-                     mean = 0,
-                     sd = self$staticStepSD
+                  mvrnorm(
+                     n = 1,
+                     mu = rep(0, numParams),
+                     Sigma = self$staticCovariance
                      );
                self$propose(realizationCount);
             }
@@ -527,7 +554,7 @@ BayesAMMCMCSampler <- R6Class(
                # ensemble
                covarianceIndeces <- 
                   self$startCovarianceIndex:(realizationCount - 1);
-               covarianceMatrix <- 
+               self$adaptiveCovariance <- 
                   cov(self$paramSamples[covarianceIndeces,]) *
                   self$adaptiveCovarianceFactor +
                   tinyIdent;
@@ -540,7 +567,7 @@ BayesAMMCMCSampler <- R6Class(
                   mvrnorm(
                      n = 1,
                      mu = rep(0, numParams),
-                     Sigma = covarianceMatrix
+                     Sigma = self$adaptiveCovariance
                   );
                self$propose(realizationCount);
             }

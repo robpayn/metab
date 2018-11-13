@@ -75,18 +75,18 @@ burninSDAdjust <- 75;
 sampler <- BayesAMMCMCSampler$new(
    bayesObjFunc = objFunc,
    initialParams = c(
-      GPP = knownGPP * offsetFactor, 
-      ER = knownER * offsetFactor, 
+      GPP = knownGPP * offsetFactor,
+      ER = knownER * offsetFactor,
       k600 = knownk600 * offsetFactor
       ),
-   burninStepSD = c(
-      GPP = knownGPP / burninSDAdjust,
-      ER = -knownER / burninSDAdjust,
-      k600 = knownk600 / burninSDAdjust
-      ),
+   burninCovariance = diag((c(
+      GPP = knownGPP,
+      ER = -knownER,
+      k600 = knownk600
+      ) / burninSDAdjust)^2),
    burninRealizations = 200,
    staticRealizations = 200,
-   adaptiveRealizations = 3000,
+   adaptiveRealizations = 2000,
    adaptiveCovarianceFactor = 0.5
    );
 sampler$optimize();
@@ -106,6 +106,7 @@ plot(sampler$paramSamples[,"k600"]);
 
 # plot the ensemble of parameter samples (eliminating burnin)
 paramEnsemble <- sampler$paramSamples[400:nrow(sampler$paramSamples),];
+
 if (output == "win") {
    windows(width = 8, height = 10);
 }
@@ -129,9 +130,10 @@ objFunc$propose(sampler$paramSamples[maxIndex,]);
 if (output == "win") {
    windows(width = 8, height = 10);
 }
+par(mfrow = c(1, 1), mar = c(4, 5, 2, 1));
 plot(
    x = model$output$time, 
-   y = objFunc$baseObjFunc$synthPrediction$do, 
+   y = objFunc$synthPrediction$do, 
    type = "l",
    ylab = expression(paste(
       "[DO] (g ", m^-3, ")"
@@ -139,7 +141,7 @@ plot(
 );
 points(
    x = model$output$time, 
-   y = objFunc$baseObjFunc$observation$do
+   y = objFunc$observation$do
 );
 lines(
    x = model$output$time,
