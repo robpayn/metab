@@ -3,6 +3,8 @@ rm(list = ls());
 source(file = "./metab/debug.R");
 loadObjective(path = "./metab");
 
+output <- "pdf";
+
 # Read the data file that is providing sample PAR
 # and temperature data
 doData <- read.table(
@@ -89,8 +91,14 @@ sampler <- BayesAMMCMCSampler$new(
    );
 sampler$optimize();
 
+if (output == "pdf") {
+   pdf(file = "./output/test.pdf", width = 8.5, height = 10)
+}
+
 # Plot the full traces of the parameter samples
-windows(width = 8, height = 10);
+if (output == "win") {
+   windows(width = 8, height = 10);
+}
 par(mfrow = c(3, 1), mar = c(4, 5, 1, 1));
 plot(sampler$paramSamples[,"GPP"]);
 plot(sampler$paramSamples[,"ER"]);
@@ -98,14 +106,18 @@ plot(sampler$paramSamples[,"k600"]);
 
 # plot the ensemble of parameter samples (eliminating burnin)
 paramEnsemble <- sampler$paramSamples[400:nrow(sampler$paramSamples),];
-windows(width = 8, height = 10);
+if (output == "win") {
+   windows(width = 8, height = 10);
+}
 par(mfrow = c(3, 1), mar = c(4, 5, 1, 1));
 plot(paramEnsemble[,"GPP"]);
 plot(paramEnsemble[,"ER"]);
 plot(paramEnsemble[,"k600"]);
 
 # Plot the posterior probability densities for parameter estimates
-windows(width = 8, height = 10);
+if (output == "win") {
+   windows(width = 8, height = 10);
+}
 par(mfrow = c(3, 1), mar = c(4, 5, 2, 1));
 plot(density(paramEnsemble[,"GPP"]));
 plot(density(paramEnsemble[,"ER"]));
@@ -114,7 +126,9 @@ plot(density(paramEnsemble[,"k600"]));
 # Plot the fit with the highest likelihood on the data
 maxIndex <- which.max(sampler$likeSamples$posterior);
 objFunc$propose(sampler$paramSamples[maxIndex,]);
-windows(width = 8, height = 8);
+if (output == "win") {
+   windows(width = 8, height = 10);
+}
 plot(
    x = model$output$time, 
    y = objFunc$baseObjFunc$synthPrediction$do, 
@@ -138,3 +152,7 @@ mtext(
    side = 1,
    outer = TRUE
 );
+
+if (output == "pdf") {
+   dev.off();
+}
