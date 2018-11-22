@@ -62,7 +62,7 @@ objFunc <- ObjFuncLogLikelihood$new(
       sd = list(do = knownsdDO, pCO2 = knownsdpCO2)
       ),
    sd = c(knownsdDO, knownsdpCO2),
-   invert = TRUE
+   negate = TRUE
    );
 
 realize <- function(x, objFunc, par) {

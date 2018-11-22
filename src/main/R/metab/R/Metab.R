@@ -71,11 +71,11 @@ ParameterProcessorMetab <- R6Class(
    classname = "ParameterProcessorMetab",
    inherit = ParameterProcessor,
    public = list(
-      process = function(model, params)
+      process = function(params)
          {
-            model$dailyGPP <- params[1];
-            model$dailyER <- params[2];
-            model$k600 <- params[3];
+            self$model$dailyGPP <- params[1];
+            self$model$dailyER <- params[2];
+            self$model$k600 <- params[3];
          }
       )
    );
@@ -85,10 +85,10 @@ PredictionProcessorMetabDo <- R6Class(
    classname = "PredictionProcessorMetabDoDic",
    inherit = PredictionProcessor,
    public = list(
-      process = function(model)
+      process = function()
          {
             return(data.frame(
-               do = model$output$do
+               do = self$model$output$do
                ));
          }
       )
@@ -99,11 +99,11 @@ PredictionProcessorMetabDoDic <- R6Class(
    classname = "PredictionProcessorMetabDoDic",
    inherit = PredictionProcessor,
    public = list(
-      process = function(model)
+      process = function()
          {
             return(data.frame(
-               do = model$output$do,
-               pCO2 = model$output$pCO2
+               do = self$model$output$do,
+               pCO2 = self$model$output$pCO2
                ));
          }
       )

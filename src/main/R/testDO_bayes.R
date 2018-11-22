@@ -3,7 +3,8 @@ rm(list = ls());
 source(file = "./metab/debug.R");
 loadObjective(path = "./metab");
 
-output <- "pdf";
+output <- "win";
+outFile = "./output/test.pdf"
 
 # Read the data file that is providing sample PAR
 # and temperature data
@@ -50,6 +51,9 @@ model <- ModelOneStationMetabDo$new(
    );
 
 # Define the objective function to use in the optimization
+# Include a synthetic error processor to allow the objective
+#    function to generate synthetic realizations from a 
+#    known model.
 objFunc <- BayesLogLikelihood$new(
    paramDists = list(
       GPP = RVUniform$new(min = 0, max = 1000),
@@ -68,8 +72,11 @@ objFunc <- BayesLogLikelihood$new(
       )
    );
 
+# Create a realization of synthetic observations
 objFunc$realize();
 
+# Create a Bayesian Adaptive Metropolis Markov Chain
+#    Monte Carlo sampler, and exectue an optimization.
 offsetFactor <- 0.8;
 burninSDAdjust <- 75;
 sampler <- BayesAMMCMCSampler$new(
@@ -86,13 +93,13 @@ sampler <- BayesAMMCMCSampler$new(
       ) / burninSDAdjust)^2),
    burninRealizations = 200,
    staticRealizations = 200,
-   adaptiveRealizations = 2000,
+   adaptiveRealizations = 100,
    adaptiveCovarianceFactor = 0.5
    );
 sampler$optimize();
 
 if (output == "pdf") {
-   pdf(file = "./output/test.pdf", width = 8.5, height = 10)
+   pdf(file = outFile, width = 8.5, height = 10)
 }
 
 # Plot the full traces of the parameter samples
@@ -125,7 +132,7 @@ plot(density(paramEnsemble[,"ER"]));
 plot(density(paramEnsemble[,"k600"]));
 
 # Plot the fit with the highest likelihood on the data
-maxIndex <- which.max(sampler$likeSamples$posterior);
+maxIndex <- which.max(sampler$stats$posterior);
 objFunc$propose(sampler$paramSamples[maxIndex,]);
 if (output == "win") {
    windows(width = 8, height = 10);

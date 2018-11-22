@@ -3,6 +3,14 @@ library(MASS);
 
 # Class RandomVariable (R6) ####
 
+#' Abstract random variable class
+#' 
+#' A class representing a random variable with a given distribution.
+#' 
+#' This class is abstract and is not intended to be instantiated
+#' directly. 
+#' 
+#' @export
 RandomVariable <- R6Class(
    classname = "RandomVariable",
    public = list(
@@ -12,6 +20,18 @@ RandomVariable <- R6Class(
          }
       )
    );
+
+#' Provides the probability density 
+#' 
+#' Provides the probability density for a given value in the 
+#' distribution of the random variable.
+#' 
+#' @name RandomVariable_density
+#' @param val The value for which the probability density is requested
+#' @param log A boolean switch for requesting the log probability density
+#' @return The probability density of the value requested 
+NULL
+
 
 # Class RVUniform (R6) ####
 
@@ -90,7 +110,12 @@ Model <- R6Class(
 ParameterProcessor <- R6Class(
    classname = "ParameterProcessor",
    public = list(
-      process = function(model, params)
+      model = NULL,
+      initialize = function(model = NULL)
+         {
+            self$model <- model;  
+         },
+      process = function(params)
          {
             stop("Abstract function 'ParameterProcessor.process' 
                  has not been implemented");
@@ -103,7 +128,12 @@ ParameterProcessor <- R6Class(
 PredictionProcessor <- R6Class(
    classname = "PredictionProcessor",
    public = list(
-      process = function(model)
+      model = NULL,
+      initialize = function(model = NULL)
+         {
+            self$model <- model;  
+         },
+      process = function()
          {
             stop("Abstract function 'PredictionProcessor.process' 
                  has not been implemented");
@@ -192,22 +222,32 @@ ObjectiveFunction <- R6Class(
          {
             self$model <- model;
             self$parameterProcessor <- parameterProcessor;
+            if(is.null(self$parameterProcessor$model)) {
+               self$parameterProcessor$model <- self$model;
+            }
             self$predictionProcessor <- predictionProcessor;
+            if(is.null(self$predictionProcessor$model)) {
+               self$predictionProcessor$model <- self$model;
+            }
             self$observation <- observation;
             self$synthErrorProcessor <- synthErrorProcessor;
             if (!is.null(self$synthErrorProcessor)) {
                self$model$run();
-               self$prediction <- self$predictionProcessor$process(self$model);
+               self$prediction <- self$predictionProcessor$process();
                self$synthPrediction <- self$prediction;
             }
          },
       propose = function(params)
          {
             self$params <- params;
-            self$parameterProcessor$process(model = self$model, params = params);
+            self$parameterProcessor$process(params = params);
             self$model$run();
-            self$prediction <- self$predictionProcessor$process(model = self$model);
-            self$value <- self$compare(params);
+            self$prediction <- self$predictionProcessor$process();
+            if(is.null(self$prediction)) {
+               self$value <- NULL;   
+            } else {
+               self$value <- self$compare(params);
+            }
             return(self$value);
          },
       realize = function()
@@ -239,6 +279,9 @@ ObjectiveFunction <- R6Class(
 #'    likelihood. There should be the same number of standard deviations as
 #'    the number of columns in the dataframes of predictons and observations
 #'    to be compared by the objective function.
+#' @param negate A boolean switch indicating if objective function value
+#'    should be negated for switching between maximization or minimization
+#'    algorithms
 #' @return The object of class \code{ObjFuncLogLikelihood} created
 #'    by the constructor
 ObjFuncLogLikelihood <- R6Class(
@@ -356,7 +399,11 @@ BayesLogLikelihood <- R6Class(
             # operation of the base objective function calculations
             self$params <- params;
             self$baseObjFunc$propose(params);
-            self$value <- self$compare(params);
+            if(is.null(self$baseObjFunc$value)) {
+               self$value <- NULL;
+            } else {
+               self$value <- self$compare(params);
+            }
             return(self$value);
          },
       realize = function()
@@ -432,6 +479,7 @@ BayesAMMCMCSampler <- R6Class(
    public = list(
       bayesObjFunc = NULL,
       initialParams = NULL,
+      numParams = NULL,
       burninRealizations = NULL,
       startCovarianceIndex = NULL,
       staticRealizations = NULL,
@@ -440,8 +488,11 @@ BayesAMMCMCSampler <- R6Class(
       totalRealizations = NULL,
       adaptiveCovarianceFactor = NULL,
       paramSamples = NULL,
-      paramProposed = NULL,
-      likeSamples = NULL,
+      paramSamplesFile = NULL,
+      paramProposals = NULL,
+      paramProposalsFile = NULL,
+      stats = NULL,
+      statsFile = NULL,
       burninCovariance = NULL,
       staticCovariance = NULL,
       tinyIdentFactor = NULL,
@@ -455,7 +506,10 @@ BayesAMMCMCSampler <- R6Class(
          staticRealizations,
          adaptiveRealizations,
          adaptiveCovarianceFactor = 1,
-         tinyIdentFactor = 1e-20
+         tinyIdentFactor = 1e-20,
+         paramProposalsFile = "./output/paramProposals.csv",
+         paramSamplesFile = "./output/paramSamples.csv",
+         statsFile = "./output/stats.csv"
          )
          {
             # Assign attributes according to arguments
@@ -468,8 +522,12 @@ BayesAMMCMCSampler <- R6Class(
             self$adaptiveRealizations <- adaptiveRealizations;
             self$adaptiveCovarianceFactor <- adaptiveCovarianceFactor;
             self$tinyIdentFactor <- tinyIdentFactor;
+            self$paramProposalsFile <- paramProposalsFile;
+            self$paramSamplesFile <- paramSamplesFile;
+            self$statsFile <- statsFile;
             
             # Derive attributes for indexing phases of AMMCMC algorithm
+            self$numParams <- length(initialParams);
             self$startCovarianceIndex <- burninRealizations + 1;
             self$totalStaticRealizations <- 
                self$burninRealizations + self$staticRealizations;
@@ -480,37 +538,72 @@ BayesAMMCMCSampler <- R6Class(
             # populate the first row
             self$paramSamples <- matrix(
                nrow = self$totalRealizations, 
-               ncol = length(initialParams)
-               );
-            colnames(self$paramSamples) <- names(initialParams);
+               ncol = self$numParams,
+               dimnames = list(NULL, names(initialParams))
+            );
             self$paramSamples[1,] <- initialParams;
 
             # Create the matrix for the parameters proposed and
             # populate the first row
-            self$paramProposed <- matrix(
+            self$paramProposals <- matrix(
                nrow = self$totalRealizations, 
-               ncol = length(initialParams)
+               ncol = self$numParams,
+               dimnames = list(NULL, names(initialParams))
                );
-            colnames(self$paramProposed) <- names(initialParams);
-            self$paramProposed[1,] <- initialParams;
-
-            # Create the data frame for the likelihood ensemble and
-            # populate the first row
-            self$likeSamples <- data.frame(
+            self$paramProposals[1,] <- initialParams;
+   
+            self$stats <- data.frame(
                posterior = numeric(length = self$totalRealizations),
                likelihood = numeric(length = self$totalRealizations),
-               wasAccepted = logical(length = self$totalRealizations)
-               );
+               wasAccepted = logical(length = self$totalRealizations),
+               propPosterior = numeric(length = self$totalRealizations),
+               propLikelihood = numeric(length = self$totalRealizations)
+            );
+
+            # Create the first row of samples and proposals from the
+            # initial parameter set
             self$bayesObjFunc$propose(self$initialParams);
-            self$likeSamples$posterior[1] <- self$bayesObjFunc$value;
-            self$likeSamples$likelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
-            self$likeSamples$wasAccepted[1] <- TRUE;
+            self$stats$posterior[1] <- self$bayesObjFunc$value;
+            self$stats$propPosterior[1] <- self$bayesObjFunc$value;
+            self$stats$likelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
+            self$stats$propLikelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
+            self$stats$wasAccepted[1] <- TRUE;
          },
       optimize = function()
          {
-            numParams = ncol(self$paramSamples);
+            # Set up the output files and write the first line
+            write.table(
+               x = data.frame(self$paramSamples[1:2,])[1,], 
+               file = self$paramSamplesFile, 
+               append = FALSE,
+               sep = ",",
+               col.names = TRUE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+            write.table(
+               x = data.frame(self$paramProposals[1:2,])[1,], 
+               file = self$paramProposalsFile, 
+               append = FALSE,
+               sep = ",",
+               col.names = TRUE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+            write.table(
+               x = self$stats[1,], 
+               file = self$statsFile, 
+               append = FALSE,
+               sep = ",",
+               col.names = TRUE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+
+            # Create a tiny identity matrix to avoid zeros in 
+            # diagonal of covariance matrix
             tinyIdent = 
-               diag(numParams) * 
+               diag(self$numParams) * 
                self$tinyIdentFactor * 
                self$adaptiveCovarianceFactor;
             
@@ -520,11 +613,11 @@ BayesAMMCMCSampler <- R6Class(
                # Take a Markov Chain step in parameter space based on a
                # static covariance and propose the parameter set to the
                # Bayesian criterion
-               self$paramProposed[realizationCount,] <- 
-                  self$paramSamples[(realizationCount - 1),] +
+               self$paramProposals[realizationCount,] <- 
+                  self$paramSamples[realizationCount - 1,] +
                   mvrnorm(
                      n = 1,
-                     mu = rep(0, numParams),
+                     mu = rep(0, self$numParams),
                      Sigma = self$burninCovariance
                      );
                self$propose(realizationCount);
@@ -536,11 +629,11 @@ BayesAMMCMCSampler <- R6Class(
                # Take a Markov Chain step in parameter space based on a
                # static covariance and propose the parameter set to the
                # Bayesian criterion
-               self$paramProposed[realizationCount,] <- 
-                  self$paramSamples[(realizationCount - 1),] +
+               self$paramProposals[realizationCount,] <- 
+                  self$paramSamples[realizationCount - 1,] +
                   mvrnorm(
                      n = 1,
-                     mu = rep(0, numParams),
+                     mu = rep(0, self$numParams),
                      Sigma = self$staticCovariance
                      );
                self$propose(realizationCount);
@@ -549,11 +642,10 @@ BayesAMMCMCSampler <- R6Class(
             # Start the adaptive covariance Metropolis phase
             loop <- (self$totalStaticRealizations + 1):self$totalRealizations;
             for(realizationCount in loop) {
-               
+               prevRealization <- realizationCount - 1;
                # Adapt the covariance matrix based on the current parameter
                # ensemble
-               covarianceIndeces <- 
-                  self$startCovarianceIndex:(realizationCount - 1);
+               covarianceIndeces <- self$startCovarianceIndex:prevRealization;
                self$adaptiveCovariance <- 
                   cov(self$paramSamples[covarianceIndeces,]) *
                   self$adaptiveCovarianceFactor +
@@ -562,29 +654,33 @@ BayesAMMCMCSampler <- R6Class(
                # Take a Markov Chain step in parameter space based on an
                # adapted covariance and propose the parameter set to the
                # Bayesian criterion
-               self$paramProposed[realizationCount,] <- 
-                  self$paramSamples[(realizationCount - 1),] +
+               self$paramProposals[realizationCount,] <- 
+                  self$paramSamples[prevRealization,] +
                   mvrnorm(
                      n = 1,
-                     mu = rep(0, numParams),
+                     mu = rep(0, self$numParams),
                      Sigma = self$adaptiveCovariance
                   );
                self$propose(realizationCount);
             }
          },
-      propose = function(index)
+      propose = function(index, prevIndex = index - 1)
          {
             # Determine the difference in posterior likelihood
             # between proposed parameter set and the previous
             # Markov Chain step
-            posteriorProposed <-
-               self$bayesObjFunc$propose(self$paramProposed[index,]);
-            if(is.infinite(posteriorProposed)) {
+            posteriorProposed <- self$bayesObjFunc$propose(
+               self$paramProposals[index,]
+               );
+            self$stats$propPosterior[index] <- self$bayesObjFunc$value;
+            self$stats$propLikelihood[index] <- self$bayesObjFunc$baseObjFunc$value;
+            
+            if(is.null(posteriorProposed)) {
                deltaPosterior <- 0;
             } else {
                deltaPosterior <- exp(
                   posteriorProposed - 
-                  self$likeSamples$posterior[index - 1]
+                  self$stats$posterior[prevIndex]
                   );
             }
             
@@ -593,22 +689,43 @@ BayesAMMCMCSampler <- R6Class(
             # previous Markov Chain step
             if(runif(n = 1) < deltaPosterior) {
                # Accept the proposed parameters
-               self$likeSamples$wasAccepted[index] <- TRUE;
-               self$paramSamples[index,] <- self$paramProposed[index,];
-               self$likeSamples$posterior[index] <- 
-                  self$bayesObjFunc$value;
-               self$likeSamples$likelihood[index] <- 
-                  self$bayesObjFunc$baseObjFunc$value;
+               self$stats$wasAccepted[index] <- TRUE;
+               self$paramSamples[index,] <- self$paramProposals[index,];
+               self$stats$posterior[index] <- self$stats$propPosterior[index];
+               self$stats$likelihood[index] <- self$stats$propLikelihood[index];
             } else {
                # Reject the proposed parameters
-               self$likeSamples$wasAccepted[index] <- FALSE;
-               self$paramSamples[index,] <- 
-                  self$paramSamples[(index - 1),];
-               self$likeSamples$posterior[index] <- 
-                  self$likeSamples$posterior[index - 1];
-               self$likeSamples$likelihood[index] <- 
-                  self$likeSamples$likelihood[index - 1];
+               self$stats$wasAccepted[index] <- FALSE;
+               self$paramSamples[index,] <- self$paramSamples[prevIndex,];
+               self$stats$posterior[index] <- self$stats$posterior[prevIndex];
+               self$stats$likelihood[index] <- self$stats$likelihood[prevIndex];
             }
+            
+            # Write results to output files
+            write(
+               self$paramSamples[index,], 
+               file = self$paramSamplesFile, 
+               ncolumns = self$numParams,
+               sep = ",",
+               append = TRUE
+               );
+            write(
+               self$paramProposals[index,], 
+               file = self$paramProposalsFile, 
+               ncolumns = self$numParams,
+               sep = ",",
+               append = TRUE
+               );
+            write.table(
+               x = self$stats[index,], 
+               file = self$statsFile, 
+               append = TRUE,
+               sep = ",",
+               col.names = FALSE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+            
          }
       )
    );
