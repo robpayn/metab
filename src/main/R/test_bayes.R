@@ -3,9 +3,6 @@ rm(list = ls());
 source(file = "./metab/debug.R");
 loadObjective(path = "./metab");
 
-output = "win";
-outFile = "./output/test.pdf"
-
 # Read the data file that is providing sample PAR
 # and temperature data
 doData <- read.table(
@@ -63,7 +60,7 @@ objFunc <- BayesLogLikelihood$new(
       ER = RVUniform$new(min = -1000, max = 0),
       k600 = RVUniform$new(min = 0, max = 100)
       ),
-   baseObjFunc = ObjFuncLogLikelihood$new(
+   baseObjFunc = LogLikelihood$new(
       model = model,
       parameterProcessor = ParameterProcessorMetab$new(),
       predictionProcessor = PredictionProcessorMetabDoDic$new(),
@@ -75,15 +72,12 @@ objFunc <- BayesLogLikelihood$new(
       )
    );
 
-# Create a realization of synthetic observations
-objFunc$realize();
-
 # Create a Bayesian Adaptive Metropolis Markov Chain
 #    Monte Carlo sampler, and exectue an optimization.
 offsetFactor <- 0.8;
 burninSDAdjust <- 75;
-sampler <- BayesAMMCMCSampler$new(
-   bayesObjFunc = objFunc,
+sampler <- AMMCMCSampler$new(
+   objFunc = objFunc,
    initialParams = c(
       GPP = knownGPP * offsetFactor,
       ER = knownER * offsetFactor,
@@ -97,74 +91,10 @@ sampler <- BayesAMMCMCSampler$new(
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
-   adaptiveCovarianceFactor = 0.5
+   adaptiveCovarianceFactor = 0.5,
+   filesPath = "./output_dodic",
+   statsLogger = StatsLoggerBayes$new()
    );
 sampler$optimize();
 
-if (output == "pdf") {
-   pdf(file = outFile, width = 8.5, height = 10)
-}
-
-# Plot the full traces of the parameter samples
-if (output == "win") {
-   windows(width = 8, height = 10);
-}
-par(mfrow = c(3, 1), mar = c(4, 5, 1, 1));
-plot(sampler$paramSamples[,"GPP"]);
-plot(sampler$paramSamples[,"ER"]);
-plot(sampler$paramSamples[,"k600"]);
-
-# plot the ensemble of parameter samples (eliminating burnin)
-paramEnsemble <- sampler$paramSamples[400:nrow(sampler$paramSamples),];
-
-if (output == "win") {
-   windows(width = 8, height = 10);
-}
-par(mfrow = c(3, 1), mar = c(4, 5, 1, 1));
-plot(paramEnsemble[,"GPP"]);
-plot(paramEnsemble[,"ER"]);
-plot(paramEnsemble[,"k600"]);
-
-# Plot the posterior probability densities for parameter estimates
-if (output == "win") {
-   windows(width = 8, height = 10);
-}
-par(mfrow = c(3, 1), mar = c(4, 5, 2, 1));
-plot(density(paramEnsemble[,"GPP"]));
-plot(density(paramEnsemble[,"ER"]));
-plot(density(paramEnsemble[,"k600"]));
-
-# Plot the fit with the highest likelihood on the data
-maxIndex <- which.max(sampler$stats$posterior);
-objFunc$propose(sampler$paramSamples[maxIndex,]);
-if (output == "win") {
-   windows(width = 8, height = 10);
-}
-par(mfrow = c(1, 1), mar = c(4, 5, 2, 1));
-plot(
-   x = model$output$time, 
-   y = objFunc$synthPrediction$do, 
-   type = "l",
-   ylab = expression(paste(
-      "[DO] (g ", m^-3, ")"
-   ))
-);
-points(
-   x = model$output$time, 
-   y = objFunc$observation$do
-);
-lines(
-   x = model$output$time,
-   y = model$output$do,
-   col = "red",
-   lty = "dashed"
-);
-mtext(
-   text = "Time",
-   side = 1,
-   outer = TRUE
-);
-
-if (output == "pdf") {
-   dev.off();
-}
+sampler$plotSummary(device = "pdf", file = "./output_dodic/summary.pdf");

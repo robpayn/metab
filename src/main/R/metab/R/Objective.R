@@ -3,10 +3,9 @@ library(MASS);
 
 # Class RandomVariable (R6) ####
 
-#' Abstract random variable class
+#' Abstract random variable class (R6)
 #' 
 #' A class representing a random variable with a given distribution.
-#' 
 #' This class is abstract and is not intended to be instantiated
 #' directly. 
 #' 
@@ -35,6 +34,18 @@ NULL
 
 # Class RVUniform (R6) ####
 
+#' Unifrom random variable class (R6)
+#' 
+#' Provides tools for working with a random variable with
+#' a uniform distribution defined by minimum and maximum
+#' values
+#' 
+#' @export
+#' @usage \code{RVUnifrom$new(min, max)}
+#' @param min Mininum value for the uniform distribution
+#' @param max Maximum value for the uniform distribution
+#' @return The object of class \code{RVUniform} created
+#'    by the constructor
 RVUniform <- R6Class(
    classname = "RVUniform",
    inherit = RandomVariable,
@@ -58,8 +69,30 @@ RVUniform <- R6Class(
       )
    );
 
+#' Provides the probability density for a uniform distribution
+#' 
+#' Method to provide the probability density for a given value in the 
+#' uniform distribution represented by the object
+#' 
+#' @name RVUniform_density
+#' @param val The value for which the probability density is requested
+#' @param log A boolean switch for requesting the log probability density
+#' @return The probability density of the value requested 
+NULL
+
 # Class RVNormal (R6) ####
 
+#' Normally distributed random variable class (R6)
+#' 
+#' Provides tools for working with a random variable with
+#' a normal distribution defined by a mean and standard deviation
+#' 
+#' @export
+#' @usage \code{RVNormal$new(mean, sd)}
+#' @param mean Mean of the distribution
+#' @param sd Standard deviation of the uniform distribution
+#' @return The object of class \code{RVNormal} created
+#'    by the constructor
 RVNormal <- R6Class(
    classname = "RVNormal",
    inherit = RandomVariable,
@@ -82,6 +115,18 @@ RVNormal <- R6Class(
          }
       )
    );
+
+#' Provides the probability density for a normal distribution
+#' 
+#' Method to provide the probability density for a given value in the 
+#' normal distribution represented by the object
+#' 
+#' @name RVNormal_density
+#' @param val The value for which the probability density is requested
+#' @param log A boolean switch for requesting the log probability density
+#' @return The probability density of the value requested 
+NULL
+
 
 # Class Model (R6) ####
 
@@ -146,7 +191,8 @@ PredictionProcessor <- R6Class(
 SynthErrorProcessor <- R6Class(
    classname = "SynthErrorProcessor",
    public = list(
-      process = function(objFunc)
+      objFunc = NULL,
+      process = function()
          {
             stop("Abstract function 'SynthErrorProcessor.process' 
                     has not been implemented");
@@ -167,18 +213,24 @@ SynthErrorNormal <- R6Class(
             self$mean <- mean;
             self$sd <- sd;
          },
-      process = function(objFunc)
+      process = function()
          {
-            objFunc$observation <- data.frame(mapply(
+            return(data.frame(mapply(
                FUN = function(pred, mean, sd) 
                   {
-                     return(pred + rnorm(n = nrow(objFunc$synthPrediction), mean = mean, sd = sd));
+                     return(
+                        pred + rnorm(
+                           n = nrow(self$objFunc$synthPrediction), 
+                           mean = mean, 
+                           sd = sd
+                           )
+                        );
                   }, 
-               pred = objFunc$synthPrediction,
+               pred = self$objFunc$synthPrediction,
                mean = self$mean,
                sd = self$sd,
                SIMPLIFY = FALSE
-               ));
+               )));
          }
       )
    );
@@ -211,6 +263,7 @@ ObjectiveFunction <- R6Class(
       synthPrediction = NULL,
       observation = NULL,
       synthErrorProcessor = NULL,
+      multivariateValues = NULL,
       value = NULL,
       initialize = function(
          model,
@@ -229,12 +282,16 @@ ObjectiveFunction <- R6Class(
             if(is.null(self$predictionProcessor$model)) {
                self$predictionProcessor$model <- self$model;
             }
-            self$observation <- observation;
+ 
             self$synthErrorProcessor <- synthErrorProcessor;
             if (!is.null(self$synthErrorProcessor)) {
+               self$synthErrorProcessor$objFunc <- self;
                self$model$run();
                self$prediction <- self$predictionProcessor$process();
                self$synthPrediction <- self$prediction;
+               self$realize();
+            } else {
+               self$observation <- observation;
             }
          },
       propose = function(params)
@@ -244,15 +301,17 @@ ObjectiveFunction <- R6Class(
             self$model$run();
             self$prediction <- self$predictionProcessor$process();
             if(is.null(self$prediction)) {
+               self$multivariateValues <- NULL;
                self$value <- NULL;   
             } else {
-               self$value <- self$compare(params);
+               self$multivariateValues <- self$compare(params);
+               self$value <- sum(self$multivariateValues);
             }
             return(self$value);
          },
       realize = function()
          {
-            self$synthErrorProcessor$process(objFunc = self);
+            self$observation <- self$synthErrorProcessor$process();
          },
       compare = function(params) 
          {
@@ -261,7 +320,7 @@ ObjectiveFunction <- R6Class(
       )
    );
 
-# Class ObjFuncLogLikelihood (R6) ####
+# Class LogLikelihood (R6) ####
 
 #' Log likelihood objective function class
 #' 
@@ -270,8 +329,8 @@ ObjectiveFunction <- R6Class(
 #' observations.
 #' 
 #' @export
-#' @usage \code{ObjFuncLogLikelihood$new(...)}
-#' @param ... Arguments passed to constructor \code{ObjFuncLogLikelihood$new(...)} will be 
+#' @usage \code{LogLikelihood$new(...)}
+#' @param ... Arguments passed to constructor \code{LogLikelihood$new(...)} will be 
 #'    passed generically to the constructor for the superclass \code{ObjectiveFunction}. 
 #'    See documentation for the class \code{\link{ObjectiveFunction}} for a description
 #'    of these arguments.
@@ -282,10 +341,10 @@ ObjectiveFunction <- R6Class(
 #' @param negate A boolean switch indicating if objective function value
 #'    should be negated for switching between maximization or minimization
 #'    algorithms
-#' @return The object of class \code{ObjFuncLogLikelihood} created
+#' @return The object of class \code{LogLikelihood} created
 #'    by the constructor
-ObjFuncLogLikelihood <- R6Class(
-   classname = "ObjFuncLogLikelihood",
+LogLikelihood <- R6Class(
+   classname = "LogLikelihood",
    inherit = ObjectiveFunction,
    public = list(
       sd = NULL,
@@ -301,20 +360,25 @@ ObjFuncLogLikelihood <- R6Class(
             sd <- self$sd;
             estimateSD <- is.nan(sd);
             if(any(estimateSD)) {
-               replaceIndeces <- which(estimateSD);
-               paramIndeces <- 
-                  (length(params) - length(replaceIndeces) + 1):length(params);
-               sd[replaceIndeces] <- params[paramIndeces];
+               replaceIndices <- which(estimateSD);
+               paramIndices <- 
+                  (length(params) - length(replaceIndices) + 1):length(params);
+               sd[replaceIndices] <- params[paramIndices];
             }
-            logLike <- 0;
-            for (colNum in 1:length(self$prediction)) {
-               logLike <- logLike + sum(dnorm(
-                  x = self$observation[[colNum]], 
-                  mean = self$prediction[[colNum]], 
-                  sd = sd[colNum],
-                  log = TRUE
-                  ))
-            }
+            logLike <- mapply(
+               FUN = function(p, o, sd) 
+                  {
+                     sum(dnorm(
+                        x = o,
+                        mean = p,
+                        sd = sd,
+                        log = TRUE
+                        ))
+                  },
+               p = self$prediction,
+               o = self$observation,
+               sd = as.list(sd)
+               );
             if (self$negate) {
                return(-logLike);
             } else {
@@ -332,7 +396,7 @@ ObjFuncLogLikelihood <- R6Class(
 #'    to predictions from the Model object associated with the 
 #'    ObjectiveFunction object.
 #' 
-#' @name ObjFuncLogLikelihood_compare
+#' @name LogLikelihood_compare
 #' @return The negative of the log likelihood from the comparison of
 #'    model prediction with observations
 NULL
@@ -375,23 +439,19 @@ BayesLogLikelihood <- R6Class(
          negate = FALSE
          ) 
          {
-            # Initialize the super class
-            # Models and processors are not
-            # required because they are handled
-            # by the base objective function
-            super$initialize(
-               model = baseObjFunc$model,
-               parameterProcessor = NULL,
-               predictionProcessor = NULL,
-               );
-         
+            # Parameter and prediction processors are not 
+            # necessary
+            self$parameterProcessor <- NULL;
+            self$predictionProcessor <- NULL;
+            
             # Set the values of attributes based on
             # arguments to the constructor
+            self$model <- baseObjFunc$model;
+            self$negate <- negate;
             self$paramDists <- paramDists;
             self$baseObjFunc <- baseObjFunc;
-            self$negate <- negate;
-            
             self$synthPrediction <- baseObjFunc$synthPrediction;
+            self$observation <- baseObjFunc$observation;
          },
       propose = function(params)
          {
@@ -411,7 +471,7 @@ BayesLogLikelihood <- R6Class(
             # Override the implementation of realize to allow for
             # operation of the base objective function calculations
             self$baseObjFunc$realize();
-            self$observation = self$baseObjFunc$observation;
+            self$observation <- self$baseObjFunc$observation;
          },
       compare = function(params)
          {
@@ -436,21 +496,178 @@ BayesLogLikelihood <- R6Class(
       )
    );
 
-# Class BayesAMMCMCSampler (R6) ####
+# Class Criterion (R6) ####
 
-#' A Bayesian Adaptive Metropolis Markov Chain Monte Carlo Sampler
+Criterion <- R6Class(
+   classname = "Criterion",
+   public = list(
+      isAccepted = function(prob, probRef)
+         {
+            stop("Method 'isAccepted' has not been implemented");
+         }
+      )
+   );
+
+# Class CriterionLogLikelihood (R6) ####
+
+CriterionLogLikelihood <- R6Class(
+   classname = "CriterionLogLikelihood",
+   inherit = Criterion,
+   public = list(
+      isAccepted = function(prob, probRef)
+      {
+         if(is.null(prob)) {
+            deltaPosterior <- 0;
+         } else {
+            deltaPosterior <- exp(prob - probRef);
+         }
+         return(runif(n = 1) < deltaPosterior);
+      }
+   )
+);
+
+# Class StatsLogger (R6) ####
+
+StatsLogger <- R6Class(
+   classname = "StatsLogger",
+   public = list(
+      numRows = NULL,
+      objFunc = NULL,
+      stats = NULL,
+      statsFile = NULL,
+      filePath = NULL,
+      initialize = function(
+         filePath = NULL, 
+         statsFile = "stats.csv"
+         )
+         {
+            self$filePath <- filePath;
+            if(is.null(self$filePath)) {
+               self$statsFile <- statsFile;
+            } else {
+               self$statsFile <- paste(
+                  self$filePath,
+                  statsFile,
+                  sep = "/"
+                  );
+            }
+         },
+      buildLog = function(numRows, objFunc, filePath = "./output")
+         {
+            self$numRows <- numRows;
+            self$objFunc <- objFunc;
+            self$stats <- data.frame(
+               objective = numeric(length = self$numRows),
+               propObjective = numeric(length = self$numRows),
+               wasAccepted = logical(length = self$numRows)
+               );
+            if(is.null(self$filePath)) {
+               self$filePath <- filePath;
+               self$statsFile <- paste(
+                  self$filePath,
+                  self$statsFile,
+                  sep = "/"
+               );
+            }
+         },
+      logProposed = function(index)
+         {
+            self$stats[index, 2] <- self$objFunc$value;
+         },
+      logAccepted = function(index)
+         {
+            self$stats[index, 1] <- self$objFunc$value;
+            self$stats[index, 3] <- TRUE;
+         },
+      logRejected = function(index)
+         {
+            self$stats[index, 1] <- self$stats[index - 1, 1];
+            self$stats[index, 3] <- FALSE;
+         },
+      writeFirstRow = function()
+         {
+            dir.create(
+               path = self$filePath, 
+               showWarnings = FALSE,
+               recursive = TRUE
+               );
+            write.table(
+               x = self$stats[1,], 
+               file = self$statsFile, 
+               append = FALSE,
+               sep = ",",
+               col.names = TRUE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+         },
+      writeRow = function(index)
+         {
+            write.table(
+               x = self$stats[index,], 
+               file = self$statsFile, 
+               append = TRUE,
+               sep = ",",
+               col.names = FALSE,
+               row.names = FALSE,
+               quote = TRUE
+               );
+         }
+      )
+   );
+
+# Class StatsLoggerBayes (R6) ####
+
+StatsLoggerBayes <- R6Class(
+   classname = "StatsLoggerBayes",
+   inherit = StatsLogger,
+   public = list(
+      buildLog = function(numRows, ...)
+         {
+            super$buildLog(numRows, ...);
+            names(self$stats)[1] <- "posterior";
+            names(self$stats)[2] <- "propPosterior";
+            self$stats <- cbind(
+               self$stats,
+               data.frame(
+                  likelihood = numeric(length = self$numRows),
+                  propLikelihood = numeric(length = self$numRows)
+               )
+            );
+         },
+      logProposed = function(index)
+         {
+            super$logProposed(index);
+            self$stats[index, 5] <- self$objFunc$baseObjFunc$value;
+         },
+      logAccepted = function(index)
+         {
+            super$logAccepted(index);
+            self$stats[index, 4] <- self$objFunc$baseObjFunc$value;
+         },
+      logRejected = function(index)
+         {
+            super$logRejected(index);
+            self$stats[index, 4] <- self$stats[index - 1, 4];
+         }
+      )
+   );
+
+# Class AMMCMCSampler (R6) ####
+
+#' An Adaptive Metropolis Markov Chain Monte Carlo Sampler
 #' 
-#' Provides the tools for executing a Bayesian optimization using a
+#' Provides the tools for executing an optimization using a
 #' Markov Chain sampler with an adaptive covariance matrix to determine
-#' the step size. The Metropolis algorith is used to determine whether
+#' the step size. The Metropolis algorithm is used to determine whether
 #' a proposed parameter set is accepted into the ensemble estimate of
 #' the posterior distributions of parameter estimates.
 #' 
 #' @export
-#' @usage \code{BayesAMMCMCSampler$new(...)}
+#' @usage \code{AMMCMCSampler$new(...)}
 #' @param baseObjFunc The objective function used to calculate the base
 #'    likelihood.  The sum of the log prior likelihoods are added to this
-#'    to generate the overall value of the Bayesian objective function
+#'    to generate the overall value of the objective function
 #' @param initialParams A vector with initial values for the parameter 
 #'    being estimated
 #'    (initial location in parameter space for the Markov Chain)
@@ -472,12 +689,15 @@ BayesLogLikelihood <- R6Class(
 #'    adaptive phase. By default this is set to 1.
 #' @param tinyIdentFactor The value added the diagonal of the covariance
 #'    matrix to preven zero values.  By default this is 1e-20.
-#' @return The object of class \code{BayesAMMCMCSampler} created
+#' @return The object of class \code{AMMCMCSampler} created
 #'    by the constructor
-BayesAMMCMCSampler <- R6Class(
+AMMCMCSampler <- R6Class(
    classname = "AMMCMCSampler",
    public = list(
-      bayesObjFunc = NULL,
+      objFunc = NULL,
+      prevProb = NULL,
+      maxProb = NULL,
+      maxProbIndex = NULL,
       initialParams = NULL,
       numParams = NULL,
       burninRealizations = NULL,
@@ -491,29 +711,35 @@ BayesAMMCMCSampler <- R6Class(
       paramSamplesFile = NULL,
       paramProposals = NULL,
       paramProposalsFile = NULL,
-      stats = NULL,
-      statsFile = NULL,
+      statsLogger = NULL,
+      filesPath = NULL,
+      writeFiles = NULL,
       burninCovariance = NULL,
       staticCovariance = NULL,
       tinyIdentFactor = NULL,
       adaptiveCovariance = NULL,
+      criterion = NULL,
       initialize = function(
-         bayesObjFunc, 
+         objFunc, 
          initialParams, 
          burninCovariance,
          burninRealizations,
          staticCovariance = burninCovariance,
          staticRealizations,
          adaptiveRealizations,
+         criterion = CriterionLogLikelihood$new(),
          adaptiveCovarianceFactor = 1,
          tinyIdentFactor = 1e-20,
-         paramProposalsFile = "./output/paramProposals.csv",
-         paramSamplesFile = "./output/paramSamples.csv",
-         statsFile = "./output/stats.csv"
+         writeFiles = TRUE,
+         filesPath = "./output",
+         paramProposalsFile = "paramProposals.csv",
+         paramSamplesFile = "paramSamples.csv",
+         statsLogger = StatsLogger$new()
          )
          {
             # Assign attributes according to arguments
-            self$bayesObjFunc <- bayesObjFunc;   
+            self$objFunc <- objFunc;   
+            self$criterion <- criterion;
             self$initialParams <- initialParams;
             self$burninCovariance <- burninCovariance;
             self$burninRealizations <- burninRealizations;
@@ -522,9 +748,18 @@ BayesAMMCMCSampler <- R6Class(
             self$adaptiveRealizations <- adaptiveRealizations;
             self$adaptiveCovarianceFactor <- adaptiveCovarianceFactor;
             self$tinyIdentFactor <- tinyIdentFactor;
-            self$paramProposalsFile <- paramProposalsFile;
-            self$paramSamplesFile <- paramSamplesFile;
-            self$statsFile <- statsFile;
+            self$filesPath <- filesPath;
+            self$paramProposalsFile <- paste(
+               filesPath,
+               paramProposalsFile,
+               sep = "/"
+               );
+            self$paramSamplesFile <- paste(
+               filesPath,
+               paramSamplesFile,
+               sep = "/"
+               );
+            self$writeFiles <- writeFiles;
             
             # Derive attributes for indexing phases of AMMCMC algorithm
             self$numParams <- length(initialParams);
@@ -551,54 +786,52 @@ BayesAMMCMCSampler <- R6Class(
                dimnames = list(NULL, names(initialParams))
                );
             self$paramProposals[1,] <- initialParams;
+            
+            # Configure the statistics logger object
+            self$statsLogger <- statsLogger;
+            self$statsLogger$buildLog(
+               self$totalRealizations, 
+               objFunc,
+               self$filesPath
+               );
    
-            self$stats <- data.frame(
-               posterior = numeric(length = self$totalRealizations),
-               likelihood = numeric(length = self$totalRealizations),
-               wasAccepted = logical(length = self$totalRealizations),
-               propPosterior = numeric(length = self$totalRealizations),
-               propLikelihood = numeric(length = self$totalRealizations)
-            );
-
             # Create the first row of samples and proposals from the
             # initial parameter set
-            self$bayesObjFunc$propose(self$initialParams);
-            self$stats$posterior[1] <- self$bayesObjFunc$value;
-            self$stats$propPosterior[1] <- self$bayesObjFunc$value;
-            self$stats$likelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
-            self$stats$propLikelihood[1] <- self$bayesObjFunc$baseObjFunc$value;
-            self$stats$wasAccepted[1] <- TRUE;
+            self$prevProb <- self$objFunc$propose(self$initialParams);
+            self$maxProb <- self$prevProb;
+            self$maxProbIndex <- 1;
+            self$statsLogger$logProposed(1);
+            self$statsLogger$logAccepted(1);
          },
       optimize = function()
          {
             # Set up the output files and write the first line
-            write.table(
-               x = data.frame(self$paramSamples[1:2,])[1,], 
-               file = self$paramSamplesFile, 
-               append = FALSE,
-               sep = ",",
-               col.names = TRUE,
-               row.names = FALSE,
-               quote = TRUE
-               );
-            write.table(
-               x = data.frame(self$paramProposals[1:2,])[1,], 
-               file = self$paramProposalsFile, 
-               append = FALSE,
-               sep = ",",
-               col.names = TRUE,
-               row.names = FALSE,
-               quote = TRUE
-               );
-            write.table(
-               x = self$stats[1,], 
-               file = self$statsFile, 
-               append = FALSE,
-               sep = ",",
-               col.names = TRUE,
-               row.names = FALSE,
-               quote = TRUE
-               );
+            if (self$writeFiles) {
+               dir.create(
+                  path = self$filesPath, 
+                  showWarnings = FALSE,
+                  recursive = TRUE
+                  );
+               write.table(
+                  x = data.frame(self$paramSamples[1:2,])[1,], 
+                  file = self$paramSamplesFile, 
+                  append = FALSE,
+                  sep = ",",
+                  col.names = TRUE,
+                  row.names = FALSE,
+                  quote = TRUE
+                  );
+               write.table(
+                  x = data.frame(self$paramProposals[1:2,])[1,], 
+                  file = self$paramProposalsFile, 
+                  append = FALSE,
+                  sep = ",",
+                  col.names = TRUE,
+                  row.names = FALSE,
+                  quote = TRUE
+                  );
+               self$statsLogger$writeFirstRow();
+            }
 
             # Create a tiny identity matrix to avoid zeros in 
             # diagonal of covariance matrix
@@ -611,8 +844,7 @@ BayesAMMCMCSampler <- R6Class(
             loop <- 2:self$burninRealizations;
             for(realizationCount in loop) {
                # Take a Markov Chain step in parameter space based on a
-               # static covariance and propose the parameter set to the
-               # Bayesian criterion
+               # static covariance and propose the new parameter set
                self$paramProposals[realizationCount,] <- 
                   self$paramSamples[realizationCount - 1,] +
                   mvrnorm(
@@ -627,8 +859,7 @@ BayesAMMCMCSampler <- R6Class(
             loop <- (self$burninRealizations + 1):self$totalStaticRealizations;
             for(realizationCount in loop) {
                # Take a Markov Chain step in parameter space based on a
-               # static covariance and propose the parameter set to the
-               # Bayesian criterion
+               # static covariance and propose the new parameter set
                self$paramProposals[realizationCount,] <- 
                   self$paramSamples[realizationCount - 1,] +
                   mvrnorm(
@@ -645,15 +876,14 @@ BayesAMMCMCSampler <- R6Class(
                prevRealization <- realizationCount - 1;
                # Adapt the covariance matrix based on the current parameter
                # ensemble
-               covarianceIndeces <- self$startCovarianceIndex:prevRealization;
+               covarianceIndices <- self$startCovarianceIndex:prevRealization;
                self$adaptiveCovariance <- 
-                  cov(self$paramSamples[covarianceIndeces,]) *
+                  cov(self$paramSamples[covarianceIndices,]) *
                   self$adaptiveCovarianceFactor +
                   tinyIdent;
                
                # Take a Markov Chain step in parameter space based on an
-               # adapted covariance and propose the parameter set to the
-               # Bayesian criterion
+               # adapted covariance and propose the new parameter set 
                self$paramProposals[realizationCount,] <- 
                   self$paramSamples[prevRealization,] +
                   mvrnorm(
@@ -666,66 +896,152 @@ BayesAMMCMCSampler <- R6Class(
          },
       propose = function(index, prevIndex = index - 1)
          {
-            # Determine the difference in posterior likelihood
-            # between proposed parameter set and the previous
-            # Markov Chain step
-            posteriorProposed <- self$bayesObjFunc$propose(
-               self$paramProposals[index,]
+            # Use the criterion object to determine if proposal
+            # should be accepted
+            accept <- self$criterion$isAccepted(
+                  self$objFunc$propose(self$paramProposals[index,]),
+                  self$prevProb
                );
-            self$stats$propPosterior[index] <- self$bayesObjFunc$value;
-            self$stats$propLikelihood[index] <- self$bayesObjFunc$baseObjFunc$value;
-            
-            if(is.null(posteriorProposed)) {
-               deltaPosterior <- 0;
-            } else {
-               deltaPosterior <- exp(
-                  posteriorProposed - 
-                  self$stats$posterior[prevIndex]
-                  );
-            }
+            self$statsLogger$logProposed(index);
             
             # Record results of current realization depending on whether
             # proposed parameter set is accepted or rejected relative to
             # previous Markov Chain step
-            if(runif(n = 1) < deltaPosterior) {
+            if(accept) {
                # Accept the proposed parameters
-               self$stats$wasAccepted[index] <- TRUE;
                self$paramSamples[index,] <- self$paramProposals[index,];
-               self$stats$posterior[index] <- self$stats$propPosterior[index];
-               self$stats$likelihood[index] <- self$stats$propLikelihood[index];
+               self$prevProb <- self$objFunc$value;
+               if(self$prevProb > self$maxProb) {
+                  self$maxProb = self$prevProb;
+                  self$maxProbIndex = index;
+               }
+               self$statsLogger$logAccepted(index);
             } else {
                # Reject the proposed parameters
-               self$stats$wasAccepted[index] <- FALSE;
                self$paramSamples[index,] <- self$paramSamples[prevIndex,];
-               self$stats$posterior[index] <- self$stats$posterior[prevIndex];
-               self$stats$likelihood[index] <- self$stats$likelihood[prevIndex];
+               self$statsLogger$logRejected(index);
             }
             
             # Write results to output files
-            write(
-               self$paramSamples[index,], 
-               file = self$paramSamplesFile, 
-               ncolumns = self$numParams,
-               sep = ",",
-               append = TRUE
-               );
-            write(
-               self$paramProposals[index,], 
-               file = self$paramProposalsFile, 
-               ncolumns = self$numParams,
-               sep = ",",
-               append = TRUE
-               );
-            write.table(
-               x = self$stats[index,], 
-               file = self$statsFile, 
-               append = TRUE,
-               sep = ",",
-               col.names = FALSE,
-               row.names = FALSE,
-               quote = TRUE
-               );
+            if(self$writeFiles) {
+               write(
+                  self$paramSamples[index,], 
+                  file = self$paramSamplesFile, 
+                  ncolumns = self$numParams,
+                  sep = ",",
+                  append = TRUE
+                  );
+               write(
+                  self$paramProposals[index,], 
+                  file = self$paramProposalsFile, 
+                  ncolumns = self$numParams,
+                  sep = ",",
+                  append = TRUE
+                  );
+               self$statsLogger$writeRow(index);
+            }
             
+         },
+      plotTraces = function(indices = NULL, ...)
+         {
+            if(is.null(indices)) {
+               indices <- 1:self$totalRealizations;
+            } else if (indices == "adaptive") {
+               indices <- (self$totalStaticRealizations + 1):
+                  self$totalRealizations;
+            } 
+            par(mfrow = c(self$numParams, 1), mar = c(4, 5, 1, 1));
+            for(paramIndex in 1:self$numParams) {
+               plot(
+                  self$paramSamples[indices,paramIndex],
+                  ylab = colnames(self$paramSamples)[paramIndex],
+                  ...
+                  );
+            }
+         },
+      plotPosteriorDensities = function(indices = "adaptive", ...)
+         {
+            if (indices == "adaptive") {
+               indices <- (self$totalStaticRealizations + 1):
+                  self$totalRealizations;
+            } else if(is.null(indices)) {
+               indices <- 1:self$totalRealizations;
+            }
+            par(mfrow = c(self$numParams, 1), mar = c(4, 5, 1, 1));
+            for(paramIndex in 1:self$numParams) {
+               plot(
+                  density(self$paramSamples[indices,paramIndex]),
+                  main = "",
+                  xlab = colnames(self$paramSamples)[paramIndex],
+                  ...
+                  );   
+            }
+         },
+      plotHighestPosterior = function(...)
+         {
+            numVars <- length(self$objFunc$observation);
+            self$objFunc$propose(self$paramSamples[self$maxProbIndex,]);
+            par(
+               mfrow = c(numVars, 1), 
+               mar = c(4, 5, 2, 1)
+               );
+            for(varIndex in 1:numVars) {
+               plot(
+                  self$objFunc$observation[[varIndex]],
+                  ylab = names(self$objFunc$observation)[varIndex]
+               );
+               lines(
+                  self$objFunc$baseObjFunc$prediction[[varIndex]],
+                  col = "red",
+                  lty = "dashed"
+               );
+            }
+         },
+      plotSummary = function(
+         device = "pdf", 
+         file = NULL,
+         width = 8.5,
+         height = 10
+         ) 
+         {
+            if (device == "pdf") {
+               pdf(file = file, width = width, height = height)
+            }
+            
+            # Plot the full traces of the parameter samples
+            if (device == "windows") {
+               windows(width = width, height = height);
+            } else if (device == "quartz") {
+               quartz(width = width, height = height);
+            }
+            self$plotTraces();
+            
+            if (device == "windows") {
+               windows(width = width, height = height);
+            } else if (device == "quartz") {
+               quartz(width = width, height = height);
+            }
+            self$plotTraces(indices = "adaptive");
+            
+            # Plot the posterior probability densities for parameter estimates
+            if (device == "windows") {
+               windows(width = width, height = height);
+            } else if (device == "quartz") {
+               quartz(width = width, height = height);
+            }
+            self$plotPosteriorDensities();
+            
+            # Plot the fit with the highest likelihood on the data
+            if (device == "windows") {
+               windows(width = width, height = height);
+            } else if (device == "quartz") {
+               quartz(width = width, height = height);
+            }
+            self$plotHighestPosterior();
+            
+            if (device == "pdf") {
+               dev.off();
+            }
          }
       )
    );
