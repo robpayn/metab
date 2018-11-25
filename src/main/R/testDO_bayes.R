@@ -73,7 +73,7 @@ objFunc <- BayesLogLikelihood$new(
 #    Monte Carlo sampler, and exectue an optimization.
 offsetFactor <- 0.8;
 burninSDAdjust <- 75;
-sampler <- AMMCMCSampler$new(
+sampler <- AdaptiveMCMCSampler$new(
    objFunc = objFunc,
    initialParams = c(
       GPP = knownGPP * offsetFactor,

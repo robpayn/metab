@@ -250,8 +250,29 @@ SynthErrorNormal <- R6Class(
 #' @usage \code{ObjectiveFunction$new(...)}
 #' @param model The model used to generate the predictions to be
 #'    compared to the observations by the objective function
-#' @param observation The observatins to compare to the predictions
-#'    by the objective function
+#' @param parameterProcessor A parameter processor object that is capable
+#'    of translating a simple vector of parameter values and inserting them
+#'    into the appropriate attributes of the model object, such that
+#'    the following execution of the model will generation a prediction
+#'    corresponding to those parameter values.
+#' @param predictionProcessor A prediction processor object that is capable
+#'    of extracting a set of simple vectors from the model output, which can
+#'    then be compared to the observations in calculation of the objective
+#'    function value.
+#' @param synthErrorProcessor An optional synthetic error processor object 
+#'    that can generate a synthetic observation based on some known structure
+#'    in error. By default this is null.  By setting to a valid object, this
+#'    will create a synthetic prediction from the current model configuration,
+#'    and then create a synthetic observation upon construction of the
+#'    objective function object. This feature and the "realize" method for
+#'    generating a new realization of synthetic error is designed to 
+#'    facilitatin Monte Carlo error propagation algorithms.
+#' @param observation The observations to compare to the predictions
+#'    by the objective function. Not that any observations provided as an
+#'    argument will be overwritten if a valid synthetic error processor is
+#'    provided. This argument defaults to a null value, so it is optional
+#'    if a synthetic error processor is provided. The object cannot be constructed
+#'    if the synthErrorProcessor and observation arguments are both NULL.
 ObjectiveFunction <- R6Class(
    classname = "ObjectiveFunction",
    public = list(
@@ -291,6 +312,10 @@ ObjectiveFunction <- R6Class(
                self$synthPrediction <- self$prediction;
                self$realize();
             } else {
+               if (is.null(observation)) {
+                  stop(paste("Synthetic error processor and",
+                     "observation arguments cannot both be NULL."));
+               }
                self$observation <- observation;
             }
          },
@@ -390,15 +415,19 @@ LogLikelihood <- R6Class(
 
 #' Calculate log likelihood
 #' 
-#' Calculates the negative of the log likelihood for a model 
+#' Calculates the log likelihood for a model 
 #'    prediction based on a multivariate comparison with observations.
 #'    Observations from the ObjectiveFunction object are compared
 #'    to predictions from the Model object associated with the 
 #'    ObjectiveFunction object.
 #' 
 #' @name LogLikelihood_compare
-#' @return The negative of the log likelihood from the comparison of
-#'    model prediction with observations
+#' @param params The vector of paramater values provided for optimizations.
+#'    These are necessary in case parameters characterizing the error structure
+#'    are included.
+#' @return The log likelihood from the comparison of
+#'    model prediction with observations. The log likelihood is negated
+#'    if the "negate" attribute of the object is TRUE.
 NULL
 
 # Class BayesLogLikelihood (R6) ####
@@ -508,20 +537,20 @@ Criterion <- R6Class(
       )
    );
 
-# Class CriterionLogLikelihood (R6) ####
+# Class CriterionMetropLogLikelihood (R6) ####
 
-CriterionLogLikelihood <- R6Class(
-   classname = "CriterionLogLikelihood",
+CriterionMetropLogLikelihood <- R6Class(
+   classname = "CriterionMetropLogLikelihood",
    inherit = Criterion,
    public = list(
       isAccepted = function(prob, probRef)
       {
          if(is.null(prob)) {
-            deltaPosterior <- 0;
+            delta <- 0;
          } else {
-            deltaPosterior <- exp(prob - probRef);
+            delta <- exp(prob - probRef);
          }
-         return(runif(n = 1) < deltaPosterior);
+         return(runif(n = 1) < delta);
       }
    )
 );
@@ -653,46 +682,61 @@ StatsLoggerBayes <- R6Class(
       )
    );
 
-# Class AMMCMCSampler (R6) ####
+# Class AdaptiveMCMCSampler (R6) ####
 
-#' An Adaptive Metropolis Markov Chain Monte Carlo Sampler
+#' An Adaptive Markov Chain Monte Carlo Sampler
 #' 
 #' Provides the tools for executing an optimization using a
 #' Markov Chain sampler with an adaptive covariance matrix to determine
-#' the step size. The Metropolis algorithm is used to determine whether
-#' a proposed parameter set is accepted into the ensemble estimate of
-#' the posterior distributions of parameter estimates.
+#' the step size. the algorithm for accepting or rejecting a sample is
+#' configurable, but by default is the Metropolis criterion for
+#' log likelihoods.
 #' 
 #' @export
-#' @usage \code{AMMCMCSampler$new(...)}
-#' @param baseObjFunc The objective function used to calculate the base
+#' @usage \code{AdaptiveMCMCSampler$new(...)}
+#' @param objFunc The objective function used to calculate the base
 #'    likelihood.  The sum of the log prior likelihoods are added to this
 #'    to generate the overall value of the objective function
 #' @param initialParams A vector with initial values for the parameter 
 #'    being estimated
 #'    (initial location in parameter space for the Markov Chain)
-#' @param burninCovariance The standard deviations used to stochastically 
+#' @param burninCovariance The covariance matrix used to stochastically 
 #'    constrain Markov Chain step sizes during the burnin phase
 #' @param burninRealizations Number of realizations for the burnin phase
-#' @param staticCovariance The standard deviations used to stochastically
+#' @param staticCovariance The convariance matrix used to stochastically
 #'    constrain Markov Chain step sizes during the static Metropolis
-#'    phase.  By default this will be the same as burninCovariance.
+#'    phase. This argument will default to be the same as burninCovariance.
 #' @param staticRealizations Number of realizations for the static 
 #'    Metropolis phase
 #' @param adaptiveRealizations Number of realizations for the phase
 #'    where the covariance used to constrain Markov Chain step size is
 #'    adapted according to the covariance of previous accepted parameter
-#'    sets in the ensemble
-#' @param adaptiveCovarianceFactor An adaptive covariance factor (scalar) 
-#'    which is multiplied by the raw covariance of the parameter ensemble.
-#'    This can be used to adjust for the acceptance rate during the
+#'    sets in the ensemble.
+#' @param criterion The critrerion object used for determining if a
+#'    propsed parameter set is accepted or rejected. By default, a 
+#'    criterion that assumes log likelihoods is used.
+#' @param adaptiveCovarianceFactor A scalar factormultiplied by the raw 
+#'    covariance matrix used for the Markov Chain proposal distribution.
+#'    This attribute can be used to adjust for the acceptance rate during the
 #'    adaptive phase. By default this is set to 1.
-#' @param tinyIdentFactor The value added the diagonal of the covariance
-#'    matrix to preven zero values.  By default this is 1e-20.
-#' @return The object of class \code{AMMCMCSampler} created
+#' @param tinyIdentFactor A matrix added the covariance
+#'    matrix to preven zero values in the diagonal.  
+#'    By default the value of this argument is 1e-20.
+#' @param writefiles A boolean switch used to determine if the output
+#'    of the analysis is written to files as the algorithm progresses.
+#' @param filesPath The path to which output files are written.
+#'    By default, this path is "./output"
+#' @param paramProposalsFile The file name for the proposed paramater
+#'    output.  By default, "paramProposals.csv"
+#' @param statsLogger The stats logger object to use for writing statistics
+#'    to output. By default, an object of the \code{StatsLogger} class is
+#'    created and used.  This logs the accepted probability, the proposed
+#'    probability, and a boolean value indicating if the iteration was
+#'    accepted or not.
+#' @return The object of class \code{AdaptiveMCMCSampler} created
 #'    by the constructor
-AMMCMCSampler <- R6Class(
-   classname = "AMMCMCSampler",
+AdaptiveMCMCSampler <- R6Class(
+   classname = "AdaptiveMCMCSampler",
    public = list(
       objFunc = NULL,
       prevProb = NULL,
@@ -727,7 +771,7 @@ AMMCMCSampler <- R6Class(
          staticCovariance = burninCovariance,
          staticRealizations,
          adaptiveRealizations,
-         criterion = CriterionLogLikelihood$new(),
+         criterion = CriterionMetropLogLikelihood$new(),
          adaptiveCovarianceFactor = 1,
          tinyIdentFactor = 1e-20,
          writeFiles = TRUE,
