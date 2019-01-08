@@ -1,7 +1,14 @@
 rm(list = ls());
 
-source(file = "./metab/debug.R");
-loadObjective(path = "./metab");
+loadpath <- "../../../../infmod/src/main/R/infmod/R";
+source(file = paste(loadpath, "RandomVariable.R", sep = "/"));
+source(file = paste(loadpath, "ObjectiveFunction.R", sep = "/"));
+source(file = paste(loadpath, "Likelihood.R", sep = "/"));
+source(file = paste(loadpath, "MCMCSampler.R", sep = "/"));
+
+loadpath <- "../../main/R/metab/R";
+source(file = paste(loadpath, "CarbonateEq.R", sep = "/"));
+source(file = paste(loadpath, "Metab.R", sep = "/"));
 
 # Read the data file that is providing sample PAR
 # and temperature data
@@ -97,4 +104,4 @@ sampler <- AdaptiveMCMCSampler$new(
    );
 sampler$optimize();
 
-sampler$plotSummary(device = "pdf", file = "./output_dodic/summary.pdf");
+sampler$plotSummary(device = "windows", file = "./output_dodic/summary.pdf");

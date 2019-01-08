@@ -1,7 +1,14 @@
 rm(list = ls());
 
-source(file = "./metab/debug.R");
-loadObjective(path = "./metab");
+loadpath <- "../../../../infmod/src/main/R/infmod/R";
+source(file = paste(loadpath, "RandomVariable.R", sep = "/"));
+source(file = paste(loadpath, "ObjectiveFunction.R", sep = "/"));
+source(file = paste(loadpath, "Likelihood.R", sep = "/"));
+source(file = paste(loadpath, "MCMCSampler.R", sep = "/"));
+
+loadpath <- "../../main/R/metab/R";
+source(file = paste(loadpath, "CarbonateEq.R", sep = "/"));
+source(file = paste(loadpath, "Metab.R", sep = "/"));
 
 # Read the data file that is providing sample PAR
 # and temperature data
@@ -48,16 +55,14 @@ model <- ModelOneStationMetabDo$new(
    );
 
 # Define the objective function to use in the optimization
-objFunc <- ObjFuncLogLikelihood$new(
+objFunc <- LogLikelihood$new(
    model = model,
    parameterProcessor = ParameterProcessorMetab$new(),
    predictionProcessor = PredictionProcessorMetabDo$new(),
    synthErrorProcessor = SynthErrorNormal$new(mean = list(do = 0), sd = list(do =knownsdDO)),
    sd = knownsdDO,
-   invert = TRUE
+   negate = TRUE
    );
-
-objFunc$realize();
 
 # Infer metabolic parameter values by minimizing the value returned 
 # by the objective function.

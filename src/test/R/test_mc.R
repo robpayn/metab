@@ -1,7 +1,16 @@
 rm(list = ls());
 
-source(file = "./metab/debug.R");
-loadObjective(path = "./metab");
+library(parallel);
+
+loadpath <- "../../../../infmod/src/main/R/infmod/R";
+source(file = paste(loadpath, "RandomVariable.R", sep = "/"));
+source(file = paste(loadpath, "ObjectiveFunction.R", sep = "/"));
+source(file = paste(loadpath, "Likelihood.R", sep = "/"));
+source(file = paste(loadpath, "MCMCSampler.R", sep = "/"));
+
+loadpath <- "../../main/R/metab/R";
+source(file = paste(loadpath, "CarbonateEq.R", sep = "/"));
+source(file = paste(loadpath, "Metab.R", sep = "/"));
 
 # Read the data file that is providing sample PAR
 # and temperature data
@@ -51,7 +60,7 @@ model <- ModelOneStationMetabDoDic$new(
    );
 
 # Define the objective function to use in the optimization
-objFunc <- ObjFuncLogLikelihood$new(
+objFunc <- LogLikelihood$new(
    model = model,
    parameterProcessor = ParameterProcessorMetab$new(),
    predictionProcessor = PredictionProcessorMetabDoDic$new(),
@@ -63,43 +72,51 @@ objFunc <- ObjFuncLogLikelihood$new(
    negate = TRUE
    );
 
-objFunc$realize();
+realize <- function(x, objFunc, par) {
+   
+   objFunc$realize();
 
-# Infer metabolic parameter values by minimizing the value returned
-# by the objective function.
-optimr <- optim(
+   # Infer metabolic parameter values by minimizing the value returned
+   # by the objective function.
+   optimr <- optim(
+      par = par,
+      fn = objFunc$propose
+      );
+   return(optimr$par);
+   
+}
+
+timerS <- Sys.time();
+ensemble <- sapply(
+   X = numeric(length = 5),
+   FUN = realize,
+   objFunc = objFunc,
    par = c(
       knownGPP,
       knownER,
       knownk600
-      ),
-   fn = objFunc$propose
-   );
+   )
+);
+timerS <- Sys.time() - timerS;
 
-# # Define the objective function to use in the optimization
-# objFunc <- ObjFuncLogLikelihood$new(
-#    model = model,
-#    parameterProcessor = ParameterProcessorMetab$new(),
-#    predictionProcessor = PredictionProcessorMetabDoDic$new(),
-#    observation = obsSynth,
-#    sd = c(NaN, NaN),
-#    invert = TRUE
-#    );
-# 
-# # Infer metabolic parameter values by minimizing the value returned
-# # by the objective function.
-# optimr <- optim(
-#    par = c(
-#       knownGPP,
-#       knownER,
-#       knownk600,
-#       knownsdDO,
-#       knownsdpCO2
-#       ),
-#    fn = objFunc$propose
-#    );
+timerP <- Sys.time();
+cluster <- makeCluster(spec = 4);
+ensembleP <- parSapply(
+   cl = cluster,
+   X = numeric(length = 5),
+   FUN = realize,
+   objFunc = objFunc,
+   par = c(
+      knownGPP,
+      knownER,
+      knownk600
+   )
+);
+stopCluster(cl = cluster);
+timerP <- Sys.time() - timerP;
 
-objFunc$propose(optimr$par);
+objFunc$realize();
+objFunc$propose(ensemble[,1]);
 
 windows(width = 8, height = 10);
 par(
