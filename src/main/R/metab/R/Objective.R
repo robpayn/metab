@@ -326,8 +326,11 @@ ObjectiveFunction <- R6Class(
             self$model$run();
             self$prediction <- self$predictionProcessor$process();
             if(is.null(self$prediction)) {
-               self$multivariateValues <- NULL;
-               self$value <- NULL;   
+               self$multivariateValues <- rep(
+                  x = NA, 
+                  times = length(self$observation)
+                  );
+               self$value <- NA;   
             } else {
                self$multivariateValues <- self$compare(params);
                self$value <- sum(self$multivariateValues);
@@ -393,12 +396,15 @@ LogLikelihood <- R6Class(
             logLike <- mapply(
                FUN = function(p, o, sd) 
                   {
-                     sum(dnorm(
-                        x = o,
-                        mean = p,
-                        sd = sd,
-                        log = TRUE
-                        ))
+                     sum(
+                        dnorm(
+                           x = o,
+                           mean = p,
+                           sd = sd,
+                           log = TRUE
+                           ),
+                        na.rm = TRUE
+                        )
                   },
                p = self$prediction,
                o = self$observation,
@@ -488,8 +494,8 @@ BayesLogLikelihood <- R6Class(
             # operation of the base objective function calculations
             self$params <- params;
             self$baseObjFunc$propose(params);
-            if(is.null(self$baseObjFunc$value)) {
-               self$value <- NULL;
+            if(is.na(self$baseObjFunc$value)) {
+               self$value <- self$baseObjFunc$value;
             } else {
                self$value <- self$compare(params);
             }
@@ -545,7 +551,7 @@ CriterionMetropLogLikelihood <- R6Class(
    public = list(
       isAccepted = function(prob, probRef)
       {
-         if(is.null(prob)) {
+         if(is.na(prob)) {
             delta <- 0;
          } else {
             delta <- exp(prob - probRef);

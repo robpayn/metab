@@ -47,6 +47,25 @@ model <- ModelOneStationMetabDo$new(
    par = par
    );
 
+# DEBUG
+DebugPredProc <- R6Class(
+   classname = "",
+   inherit = PredictionProcessorMetabDo,
+   public = list(
+      counter = 0,
+      process = function() 
+         {
+            if(self$counter == 10) {
+               self$counter = 0;
+               return(NULL);
+            } else {
+               self$counter = self$counter + 1;
+               return(super$process());
+            }
+         }
+      )
+   );
+
 # Define the objective function to use in the optimization
 # Include a synthetic error processor to allow the objective
 #    function to generate synthetic realizations from a 
@@ -60,7 +79,8 @@ objFunc <- BayesLogLikelihood$new(
    baseObjFunc = LogLikelihood$new(
       model = model,
       parameterProcessor = ParameterProcessorMetab$new(),
-      predictionProcessor = PredictionProcessorMetabDo$new(),
+      predictionProcessor = DebugPredProc$new(),
+      # predictionProcessor = PredictionProcessorMetabDo$new(),
       synthErrorProcessor = SynthErrorNormal$new(
          mean = list(do = 0), 
          sd = list(do = knownsdDO)
