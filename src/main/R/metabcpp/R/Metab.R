@@ -1,10 +1,13 @@
-# Package dependencies ####
-
+#' @importFrom Rcpp loadModule
 #' @importFrom infmod Model
 #' @importFrom R6 R6Class
+#' @useDynLib metabcpp
 NULL
 
-# Utility functions ####
+loadModule(
+   module = "mod_metab",
+   what = TRUE
+);
 
 #' Calculates the density of water
 #' 

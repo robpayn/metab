@@ -1,7 +1,4 @@
-# Package dependencies ####
-
-#' @importFrom R6 R6Class
-NULL
+library(R6)
 
 #' Calculate Henry's constant for CO2
 #' 

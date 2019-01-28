@@ -1,14 +1,17 @@
 rm(list = ls());
+library(infmod);
+library(metab);
 
-loadpath <- "../../../../infmod/src/main/R/infmod/R";
-source(file = paste(loadpath, "RandomVariable.R", sep = "/"));
-source(file = paste(loadpath, "ObjectiveFunction.R", sep = "/"));
-source(file = paste(loadpath, "Likelihood.R", sep = "/"));
-source(file = paste(loadpath, "MCMCSampler.R", sep = "/"));
+# DEBUG
+# loadpath <- "../../../../infmod/src/main/R/infmod/R";
+# source(file = paste(loadpath, "RandomVariable.R", sep = "/"));
+# source(file = paste(loadpath, "ObjectiveFunction.R", sep = "/"));
+# source(file = paste(loadpath, "Likelihood.R", sep = "/"));
+# source(file = paste(loadpath, "MCMCSampler.R", sep = "/"));
 
-loadpath <- "../../main/R/metab/R";
-source(file = paste(loadpath, "CarbonateEq.R", sep = "/"));
-source(file = paste(loadpath, "Metab.R", sep = "/"));
+# loadpath <- "../../main/R/metab/R";
+# source(file = paste(loadpath, "CarbonateEq.R", sep = "/"));
+# source(file = paste(loadpath, "Metab.R", sep = "/"));
 
 
 # Read the data file that is providing sample PAR
@@ -56,23 +59,24 @@ model <- ModelOneStationMetabDo$new(
    );
 
 # DEBUG
-DebugPredProc <- R6Class(
-   classname = "",
-   inherit = PredictionProcessorMetabDo,
-   public = list(
-      counter = 0,
-      process = function() 
-         {
-            if(self$counter == 10) {
-               self$counter = 0;
-               return(NULL);
-            } else {
-               self$counter = self$counter + 1;
-               return(super$process());
-            }
-         }
-      )
-   );
+# library(R6);
+# DebugPredProc <- R6Class(
+#    classname = "",
+#    inherit = PredictionProcessorMetabDo,
+#    public = list(
+#       counter = 0,
+#       process = function() 
+#          {
+#             if(self$counter == 10) {
+#                self$counter = 0;
+#                return(NULL);
+#             } else {
+#                self$counter = self$counter + 1;
+#                return(super$process());
+#             }
+#          }
+#       )
+#    );
 
 # Define the objective function to use in the optimization
 # Include a synthetic error processor to allow the objective
@@ -87,8 +91,8 @@ objFunc <- BayesLogLikelihood$new(
    baseObjFunc = LogLikelihood$new(
       model = model,
       parameterProcessor = ParameterProcessorMetab$new(),
-      predictionProcessor = DebugPredProc$new(),
-      # predictionProcessor = PredictionProcessorMetabDo$new(),
+      # predictionProcessor = DebugPredProc$new(),
+      predictionProcessor = PredictionProcessorMetabDo$new(),
       synthErrorProcessor = SynthErrorNormal$new(
          mean = list(do = 0), 
          sd = list(do = knownsdDO)
@@ -121,4 +125,4 @@ sampler <- AdaptiveMCMCSampler$new(
    );
 sampler$optimize();
 
-sampler$plotSummary(device = "pdf", file = "./output/summary.pdf");
+sampler$plotSummary(device = "windows", file = "./output/summary.pdf");

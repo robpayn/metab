@@ -1,0 +1,13 @@
+Package: metabcpp
+Type: Package
+Title: Metabolism models
+Version: 0.1
+Date: 2019-01-18
+Author: Robert Payn
+Maintainer: Robert Payn <rpayn@montana.edu>
+Description: More about what it does (maybe more than one line)
+License: What license is it under?
+Imports: Rcpp (>= 0.12.17)
+LinkingTo: Rcpp
+RoxygenNote: 6.1.1
+RcppModules: mod_metab

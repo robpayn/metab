@@ -1,14 +1,13 @@
 Package: metab
+Type: Package
+Title: Metabolism models
 Version: 0.1
-Date: 2018-06-28
-Title: Metabolism Package
-Author: Rob Payn
-Maintainer: Rob Payn <rpayn@montana.edu>
-Depends:
-    R (>= 1.8.0),
-Suggests:
-Description: NA
-License: NA
-URL: NA
-BugReports: NA
-RoxygenNote: 6.0.1
+Date: 2019-01-18
+Author: Robert Payn
+Maintainer: Robert Payn <rpayn@montana.edu>
+Description: A collection of R6 classes for simulating stream metabolism
+ and interfacing with inferential modeling tools (see package infmod)
+License: GNU General Public License v3.0
+URL: https://github.com/robpayn/metab
+Imports: R6, infmod
+RoxygenNote: 6.1.1
