@@ -82,15 +82,17 @@ sampler <- AdaptiveMCMCSampler$new(
       ER = knownER * offsetFactor,
       k600 = knownk600 * offsetFactor
       ),
-   burninCovariance = diag((c(
-      GPP = knownGPP,
-      ER = -knownER,
-      k600 = knownk600
+   burninProposalDist = RVMultivariateNormal$new(
+      covariance = diag((c(
+         GPP = knownGPP,
+         ER = -knownER,
+         k600 = knownk600
       ) / burninSDAdjust)^2),
+      adjustCovarianceFactor = 0.5
+      ),
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
-   adaptiveCovarianceFactor = 0.5,
    filesPath = "./output_dodic",
    statsLogger = StatsLoggerBayes$new()
    );

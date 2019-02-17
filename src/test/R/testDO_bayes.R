@@ -53,7 +53,7 @@ model <- ModelOneStationMetabDo$new(
 #    inherit = PredictionProcessorMetabDo,
 #    public = list(
 #       counter = 0,
-#       process = function() 
+#       process = function()
 #          {
 #             if(self$counter == 10) {
 #                self$counter = 0;
@@ -100,15 +100,17 @@ sampler <- AdaptiveMCMCSampler$new(
       ER = knownER * offsetFactor,
       k600 = knownk600 * offsetFactor
       ),
-   burninCovariance = diag((c(
-      GPP = knownGPP,
-      ER = -knownER,
-      k600 = knownk600
-      ) / burninSDAdjust)^2),
+   burninProposalDist = RVMultivariateNormal$new(
+      covariance = diag((c(
+         GPP = knownGPP,
+         ER = -knownER,
+         k600 = knownk600
+         ) / burninSDAdjust)^2),
+      adjustCovarianceFactor = 0.5
+      ),
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
-   adaptiveCovarianceFactor = 0.5,
    statsLogger = StatsLoggerBayes$new()
    );
 sampler$optimize();

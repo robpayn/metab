@@ -78,27 +78,22 @@ optimr <- optim(
    fn = objFunc$propose
    );
 
-# Run the model with the best fit parameters
-objFunc$propose(optimr$par);
-
+# Plot the model fit
 windows(width = 10, height = 10);
 par(
-   mfrow = c(1, 1), 
-   mar = c(2.5, 4.5, 1, 2),
+   mar = c(2.5, 4.5, 1, 1),
    oma = c(2, 0, 0, 0)
 );
-plot(
-   x = model$output$time, 
-   y = objFunc$synthPrediction$do, 
-   type = "l",
-   ylab = expression(paste(
-      "[DO] (g ", m^-3, ")"
-   ))
+objFunc$plotFit(
+   params = optimr$par,
+   x = model$output$time,
+   ylim = c(6.5, 9.5),
+   lineArgs = list(
+      col = "red",
+      lty = "dashed"
+      )
 );
-points(
-   x = model$output$time, 
-   y = objFunc$observation$do
-   );
+
 lines(
    x = model$output$upstreamTime,
    y = model$output$upstreamDO,
@@ -110,15 +105,4 @@ lines(
    y = (model$output$doSat + model$output$upstreamDOSat) / 2,
    col = "darkorange",
    lty = "dashed"
-);
-lines(
-   x = model$output$time,
-   y = model$output$do,
-   col = "red",
-   lty = "dashed"
-);
-mtext(
-   text = "Time",
-   side = 1,
-   outer = TRUE
 );
