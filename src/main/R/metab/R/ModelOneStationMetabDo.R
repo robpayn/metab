@@ -1,0 +1,268 @@
+# Package dependencies ####
+
+# R oxygen code for importing the proper classes used in this file
+# Used for robust namespace management in R packages
+#' @importFrom infmod Model
+#' @importFrom R6 R6Class
+NULL
+
+# Class ModelOneStationMetabDo (R6) ####
+
+#' @export
+#' 
+#' @title
+#'    Class ModelOneStationMetabDo (R6)
+#'
+#' @description
+#'    A model for predicting dissolved oxygen concentrations in
+#'    a stream using the one station method.
+#' 
+#' @usage 
+#'    ModelOneStationMetabDo$new(...)
+#' @param dailyGPP 
+#'    daily average GPP influence on oxygen 
+#'    in grams per cubic meter per day 
+#'    (numerical vector with single value)
+#' @param dailyER 
+#'    daily average ER influence on oxygen
+#'    in grams per cubic meter per day 
+#'    (numerical vector with single value)
+#' @param k600 
+#'    gas exchange rate per day for air-water interface
+#'    (numerical vector with single value)
+#' @param airPressure 
+#'    air pressure in mm of Hg
+#'    (numerical vector with single value)
+#' @param initialDO 
+#'    initial DO concentration in grams per cubic meter
+#'    (numerical vector, only first value will be used)
+#' @param time 
+#'    times for temperature and par data
+#'    (POSIXct vector or character vector in a standard text format
+#'    to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")
+#' @param temp 
+#'    water temperature data in degrees Celsius
+#'    (numerical vector)
+#' @param par 
+#'    photosynthetically active radiation data. Units are arbitrary,
+#'    but must be consistent with PAR total if it is specified
+#'    (numerical vector)
+#' @param timeStepCount 
+#'    total number of time steps to which data should be
+#'    interpolated, used to reduce the number of time steps calculated for
+#'    excessively high resolution data
+#'    (numerical vector with single value, defaults to NA)
+#' @param timePar 
+#'    times for the PAR data, see note about data typein time
+#'    argument description
+#'    (POSIXct vector, defaults to be same as time argument)
+#' @param parTotal 
+#'    total PAR, see units note in par argument description
+#'    (numerical vector with single value, defaults to NA which forces
+#'    calculation of total PAR from PAR data vector)
+#' @param timeRange 
+#'    vector with 2 values for the start and end time for
+#'    the interpolated time steps
+#'    (numerical vector with two values, defaults to start and end of 
+#'    time argument)
+#' @param stdAirPressure
+#'    The standard air pressure in the desired units. Defaults to 760 mm Hg.
+#' @param doSatUnitConv
+#'    The unit conversion to convert the saturated DO concentration from
+#'    moles per liter. Defaults to 1.
+#' @param doSatCalculator
+#'    The DO saturation calculator used to estimate DO saturation concentrations
+#'    at a given temperature and air pressure. 
+#'    Defaults to a new instance of \code{\link{DoSatCalculator}} based on
+#'    the standard air pressure and saturation concentration unit conversion
+#'    arguments.
+#' @param densityWaterFunc
+#'    Option to change the function used for calculating the density of 
+#'    water from temperature. Defaults to \code{\link{densityWater}}
+#' @param kSchmidtFunc
+#'    Option to change the function used for calculating the gas exchange
+#'    rate from the gas exchange parameter normalized to a Schmidt number.
+#'    Defaults to \code{\link{kSchmidt}}
+#' @return 
+#'    The object of class \code{ModelOneStationMetabDo} 
+#'    instantiated by the constructor
+#'    
+ModelOneStationMetabDo <- R6Class(
+   classname = "ModelOneStationMetabDo",
+   inherit = Model,
+   public = list(
+      output = NULL,
+      dailyGPP = NULL, 
+      dailyER = NULL, 
+      k600 = NULL, 
+      airPressure = NULL,
+      initialDO = NULL, 
+      time = NULL, 
+      temp = NULL, 
+      par = NULL, 
+      timeStepCount  = NULL, 
+      timePar = NULL,
+      parTotal = NULL, 
+      timeRange = NULL,
+      dt = NULL,
+      doSatCalculator = NULL,
+      kSchmidtFunc = NULL,
+      initialize = function(
+         dailyGPP, 
+         dailyER, 
+         k600, 
+         airPressure, 
+         initialDO, 
+         time, 
+         temp, 
+         par, 
+         timeStepCount = NA, 
+         timePar = time,
+         parTotal = NA, 
+         timeRange = c(time[1], time[length(time)]),
+         stdAirPressure = 760,
+         doSatUnitConv = 1,
+         doSatCalculator = DoSatCalculator$new(
+            unitConvFactor = doSatUnitConv,
+            stdAirPressure = stdAirPressure
+         ),
+         kSchmidtFunc = kSchmidt
+      ) 
+      {
+         self$dailyGPP <- dailyGPP; 
+         self$dailyER <- dailyER;
+         self$k600 <- k600; 
+         self$airPressure <- airPressure;
+         self$initialDO <- initialDO;
+         self$temp <- temp;
+         self$par <- par;
+         self$timeStepCount  <- timeStepCount; 
+         self$timePar <- timePar;
+         self$parTotal <- parTotal; 
+         self$timeRange <- timeRange;
+         self$doSatCalculator <- doSatCalculator;
+         self$kSchmidtFunc <- kSchmidtFunc;
+         
+         # Interpolates temperature and PAR data to new time step 
+         # if the time step is adjusted
+         if (!is.na(self$timeStepCount)) {
+            timeIn <- as.numeric(as.POSIXct(time)) / 86400;
+            self$timeRange <- as.numeric(as.POSIXct(self$timeRange)) / 86400;
+            timeParNum <- as.numeric(as.POSIXct(self$timePar)) / 86400;
+            self$time <- seq(
+               from = self$timeRange[1], 
+               to = self$timeRange[2], 
+               length.out = self$timeStepCount + 1
+            );
+            self$temp <- approx(
+               x = timeIn, 
+               y = self$temp, 
+               xout = self$time,
+               rule =2
+            )$y;
+            self$par <- approx(
+               x = timeParNum, 
+               y = self$par, 
+               xout = self$time,
+               rule = 2
+            )$y;
+         } else {
+            self$time <- as.numeric(as.POSIXct(time)) / 86400;
+         }
+         
+         # Calculates the time step between data points
+         self$dt <- c(
+            self$time[2:length(self$time)] - self$time[1:length(self$time) - 1], 
+            0
+         );
+         
+         # If total PAR is not provided as an argument, total PAR is calculated
+         # over the vector using trapezoidal integration
+         if (is.na(self$parTotal)) {
+            parAverage <- c(
+               0.5 * (self$par[1:length(self$time) - 1] + self$par[2:length(self$time)]),
+               0
+            );
+            self$parTotal <- sum(parAverage * self$dt);
+         }
+      },
+      run = function() 
+      {
+         # Calculates the saturated oxygen concentration for the 
+         # provided temperatures and air pressure
+         doSat <- self$doSatCalculator$calculate(
+            temp = self$temp,
+            airPressure = self$airPressure
+         );
+         
+         # Calculate the temperature adjusted gas exchange rate from 
+         # the k600 rate at a Schmidt number of 600
+         k <- self$kSchmidtFunc(self$temp, self$k600);
+         
+         # specifies length to use for vectors and the data frame based on the length 
+         # of time vector
+         doPredLength <- length(self$time);
+         
+         # Creates a data frame to store values calculated in oneStationMetabDO function
+         
+         self$output <- data.frame(
+            time = as.POSIXct(
+               self$time * 86400, 
+               origin = as.POSIXct("1970-01-01", tz = "GMT")
+            ),
+            do = numeric(doPredLength),
+            doSat = doSat,
+            doProduction = numeric(doPredLength),
+            doConsumption = numeric(doPredLength),
+            k = k,
+            temp = self$temp,
+            dt = self$dt
+         );
+         
+         # Creates first value for the vector doPred$do  
+         self$output$do[1] <- self$initialDO[1];
+         
+         # Calculate the DO production and consumption for
+         # each time step
+         self$output$doProduction <- self$dailyGPP * 
+            ((self$par * self$dt) / self$parTotal); 
+         self$output$doConsumption <- self$dt * self$dailyER;
+         
+         # Iterates over the time steps to model the change in dissolved
+         # oxygen over time (one station method)
+         for (i in 2:doPredLength) {
+            self$output$do[i] <- self$output$do[i - 1] +
+               self$output$doProduction[i - 1] +
+               self$output$doConsumption[i - 1] + 
+               self$dt[i - 1] * k[i - 1] * (doSat[i - 1] - self$output$do[i - 1]);
+         }
+         
+         return(self$output);
+      }
+   )
+)
+
+#' @name ModelOneStationMetabDo_run
+#' 
+#' @title
+#'    Runs the model (R6 method)
+#' 
+#' @description 
+#'    Runs the model predicting the change in concentration of oxygen
+#'    at a location in a stream (one-station approach)
+#' 
+#' @return 
+#'    Data frame with incremental and final results of the simulation,
+#'    with columns \cr
+#'    time: POSIXct simulation time \cr
+#'    do: dissolved oxygen concentration in grams per cubic meter \cr
+#'    doSat: Saturated dissolved oxygen concentration in grams per cubic meter \cr
+#'    doProduction: increase in DO concentration during the time step in 
+#'       grams per cubic meter \cr
+#'    doConsumption: decrease in DO concentration during the time step in
+#'       grams per cubic meter \cr
+#'    k: gas exchange rate per day for oxygen \cr
+#'    temp: water temperature in degrees Celsius \cr
+#'    dt: length of time step
+#'    
+NULL

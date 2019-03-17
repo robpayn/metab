@@ -44,6 +44,7 @@ model <- ModelOneStationMetabDoDic$new(
    initialDO = doData$dissolvedOxygen,
    temp = doData$temp,
    par = par,
+   doSatUnitConv = 0.032,
    initialDIC = initialDIC,
    pCO2air = pCO2air,
    alkalinity = alkalinity

@@ -43,7 +43,8 @@ model <- ModelOneStationMetabDo$new(
    time = doData$time,
    initialDO = doData$dissolvedOxygen,
    temp = doData$temp,
-   par = par
+   par = par,
+   doSatUnitConv = 0.032
    );
 
 # Define the objective function to use in the optimization

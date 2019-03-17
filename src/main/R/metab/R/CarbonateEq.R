@@ -3,45 +3,51 @@
 #' @importFrom R6 R6Class
 NULL
 
-#' Calculate Henry's constant for CO2
+#' @export
 #' 
-#' Calculates Henry's constant for CO2 dissolution in 
+#' @title
+#'    Calculate Henry's constant for CO2
+#' 
+#' @description
+#'    Calculates Henry's constant for CO2 dissolution in 
 #'    water based on the provided temperature. (Weiss 1974 - Marine Chemistry)
 #'    
-#' @export
-#' @param tempK Temperature in Kelvin
-#' @param convertC Boolean value specifying whether the provided temperature
-#'    should be converted from Celsius to Kelvin (TRUE will convert the value,
-#'    FALSE will not convert the value) Default value is FALSE.
-#' @return Henry's constant for CO2 in moles per liter per atmosphere
-kHenryCO2fromTemp <- function(tempK, convertC = FALSE)
+#' @param tempK 
+#'    Temperature in Kelvin
+#' @return 
+#'    Henry's constant for CO2 in moles per liter per atmosphere
+#'    
+kHenryCO2fromTemp <- function(tempK)
 {
-   if (convertC) {
-      tempK = tempK + 273.15;
-   }
-   return(
-      exp(-60.2409 + 
+   return(exp(
+      -60.2409 + 
          93.4517 * (100 / tempK)  + 
-         23.3585 * log(tempK / 100))
-         );
+         23.3585 * log(tempK / 100)
+   ));
 }
 
 # CarbonateEQ Class (R6) ####
 
-#' Class CarbonateEq
-#' 
-#' R6 class \code{CarbonateEq} defines a set of equilibrium
-#' conditions for inorganic carbon at a given temperature 
-#' in freshwater
-#' 
 #' @export
-#' @usage \code{CarbonateEq$new(...)}
-#' @param ... Arguments passed to constructor \code{CarbonateEq$new(...)} will be 
+#' 
+#' @title 
+#'    Class CarbonateEq
+#' 
+#' @description 
+#'    R6 class \code{CarbonateEq} defines a set of equilibrium
+#'    conditions for inorganic carbon at a given temperature 
+#'    in freshwater
+#' 
+#' @usage 
+#'    CarbonateEq$new(...)
+#' @param ... 
+#'    Arguments passed to constructor \code{CarbonateEq$new(...)} will be 
 #'    passed generically to the method \code{\link{CarbonateEq_resetFromTemp}} 
 #'    when it is called to initialize the object. 
 #'    See documentation for \code{\link{CarbonateEq_resetFromTemp}} 
 #'    for description of arguments.
-#' @return The object of class \code{CarbonateEq} created
+#' @return 
+#'    The object of class \code{CarbonateEq} created
 #'    by the constructor
 CarbonateEq <- R6Class(
    classname = "CarbonateEq",
@@ -170,76 +176,106 @@ CarbonateEq <- R6Class(
       ),
    );
 
-#' Reset the carbonate equlibrium
-#'
-#' Resets equilibrium constants based on the provided temperature
-#'
 #' @name CarbonateEq_resetFromTemp
-#' @param tempC Temperature in degrees Celsius
-#' @param eConduct Electrical conductivity in mS cm-1, default is set to zero
+#' 
+#' @title
+#'    Reset the carbonate equlibrium
+#'
+#' @description
+#'    Resets equilibrium constants based on the provided temperature
+#'
+#' @param tempC 
+#'    Temperature in degrees Celsius
+#' @param tempK
+#'    Temperature in Kelvin. Defaults to tempC argument plus 273.15
+#' @param eConduct 
+#'    Electrical conductivity in mS cm-1, default is set to zero
 #'    which will result in the ideal case of activity equal to concentration
-#' @param ionicStrength Ionic strength in mol L-1, default is set as a linear correlate
+#' @param ionicStrength 
+#'    Ionic strength in mol L-1, default is set as a linear correlate
 #'    of electrical conductivity as suggested by Griffin and Jurinak
 #'    (1973 - Soil Science)
-#' @param daviesParam Parameter for Davies equation derivation, defaults to
+#' @param daviesParam 
+#'    Parameter for Davies equation derivation, defaults to
 #'    \code{0.5092 + (tempC - 25) * 0.00085}
-#' @param daviesExponent Factor for exponent in Davies equation, defaults to
+#' @param daviesExponent 
+#'    Factor for exponent in Davies equation, defaults to
 #'    \code{(ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) - 0.3 * ionicStrength)}
-#' @return A named vector with 2 values: the previous temperature and the new temperature
-#' @aliases resetFromTemp.CarbonateEq
+#' @return 
+#'    A named vector with 2 values: the previous temperature and the new temperature
+#'    
 NULL
 
-#' Get the total alkalinity
-#'
-#' Method to get the total alkalinity for a known
-#' equilibrium scenario based on a known dissolved inorganic carbon
-#' concentration and pH
-#'
 #' @name CarbonateEq_getTotalAlk
-#' @param carbonateEq \code{CarbonateEq} object defining equilibrium scenario
-#' @param concDIC Dissolved inorganic carbon concentration in molality
-#' @param pH The pH of the solution (minus the log10 of H+ concentration in molality)
-#' @return Total alkalinity in charge molality
-#' @aliases getTotalAlk.CarbonateEq
+#'
+#' @title
+#'    Get the total alkalinity
+#'
+#' @description 
+#'    Method to get the total alkalinity for a known
+#'    equilibrium scenario based on a known dissolved inorganic carbon
+#'    concentration and pH
+#'
+#' @param concDIC 
+#'    Dissolved inorganic carbon concentration in molality
+#' @param pH 
+#'    The pH of the solution (minus the log10 of H+ concentration in molality)
+#' @return 
+#'    Total alkalinity in charge molality
+#'    
 NULL
 
-#' Optimize to infer pH
-#'
-#' Method to perform the optimization necessary to get the pH for a known
-#' equilibrium scenario based on known dissolved inorganic carbon
-#' and total alkalinity
-#'
 #' @name CarbonateEq_optimizepH
-#' @param carbonateEq \code{CarbonateEq} object defining equilibrium scenario
-#' @param concDIC Dissolved inorganic carbon concentration in molality
-#' @param totalAlk The measured or otherwise known total alkalinity in charge molality
-#' @param tolerance The tolerance used for convergence in the optimization algorithm,
+#'
+#' @title
+#'    Optimize to infer pH
+#'
+#' @description
+#'    Method to perform the optimization necessary to get the pH for a known
+#'    equilibrium scenario based on known dissolved inorganic carbon
+#'    and total alkalinity
+#'
+#' @param concDIC 
+#'    Dissolved inorganic carbon concentration in molality
+#' @param totalAlk 
+#'    The measured or otherwise known total alkalinity in charge molality
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm,
 #'    default value is 1e-5
-#' @param range Range in pH values to constrain the optimization,
+#' @param range 
+#'    Range in pH values to constrain the optimization,
 #'    default range is 2 < pH < 12
-#' @return An optimized value of the pH based on finding the calculated total Alkalinity
+#' @return 
+#'    An optimized value of the pH based on finding the calculated total Alkalinity
 #'    from DIC that matches the observed alkalinity provided
-#' @aliases optimizepH.CarbonateEq
+#'    
 NULL
 
-#' Optimize to infer pCO2
-#'
-#' Method to calculate the pCO2 derived from
-#' the optimization necessary to get the pH for a known
-#' equilibrium scenario based on known dissolved inorganic carbon
-#' and total alkalinity
-#'
 #' @name CarbonateEq_optimizepCO2
-#' @param carbonateEq \code{CarbonateEq} object defining equilibrium scenario
-#' @param concDIC Dissolved inorganic carbon concentration in molality
-#' @param totalAlk The measured or otherwise known total alkalinity in charge molality
-#' @param tolerance The tolerance used for convergence in the optimization algorithm,
+#'
+#' @title
+#'    Optimize to infer pCO2
+#'
+#' @description
+#'    Method to calculate the pCO2 derived from
+#'    the optimization necessary to get the pH for a known
+#'    equilibrium scenario based on known dissolved inorganic carbon
+#'    and total alkalinity
+#'
+#' @param concDIC 
+#'    Dissolved inorganic carbon concentration in molality
+#' @param totalAlk 
+#'    The measured or otherwise known total alkalinity in charge molality
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm,
 #'    default value is 1e-5
-#' @param range Range in pH values to constrain the optimization,
+#' @param range 
+#'    Range in pH values to constrain the optimization,
 #'    default range is 2 < pH < 12
-#' @return A named list of the optimized values of the pCO2 and pH based on finding the
+#' @return 
+#'    A named list of the optimized values of the pCO2 and pH based on finding the
 #'    calculated total Alkalinity from DIC that matches the observed alkalinity provided
 #'    \code{list(pH = <optimized pH value>, pCO2 = <pCO2 value calculated from pH>)}.
 #'    Value of pCO2 is in units of microatmospheres.
-#' @aliases optimizepCO2.CarbonateEq
+#'    
 NULL
