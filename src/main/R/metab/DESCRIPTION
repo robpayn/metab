@@ -1,7 +1,7 @@
 Package: metab
 Type: Package
 Title: Metabolism models
-Version: 0.1
+Version: 0.0.2
 Date: 2019-01-18
 Author: Robert Payn
 Maintainer: Robert Payn <rpayn@montana.edu>
