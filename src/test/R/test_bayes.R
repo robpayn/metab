@@ -44,6 +44,7 @@ model <- ModelOneStationMetabDoDic$new(
    initialDO = doData$dissolvedOxygen,
    temp = doData$temp,
    par = par,
+   doSatUnitConv = 0.032,
    initialDIC = initialDIC,
    pCO2air = pCO2air,
    alkalinity = alkalinity
@@ -61,8 +62,8 @@ objFunc <- BayesLogLikelihood$new(
       ),
    baseObjFunc = LogLikelihood$new(
       model = model,
-      parameterProcessor = ParameterProcessorMetab$new(),
-      predictionProcessor = PredictionProcessorMetabDoDic$new(),
+      parameterTranslator = ParameterTranslatorMetab$new(model),
+      predictionExtractor = PredictionExtractorMetabDoDic$new(model),
       synthErrorProcessor = SynthErrorNormal$new(
          mean = list(do = 0, pCO2 = 0), 
          sd = list(do = knownsdDO, pCO2 = knownsdpCO2)

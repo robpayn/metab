@@ -5,28 +5,28 @@
 #' @importFrom R6 R6Class
 NULL
 
-# Class ParameterProcessorMetab (R6) ####
+# Class ParameterTranslatorMetab (R6) ####
 
 #' @export
 #' 
 #' @title 
-#'    Class ParameterProcessorMetab
+#'    Parameter tranlator for metabolism models
 #'
 #' @description 
-#'    A parameter processor allowing GPP, ER, and k600 to be used
+#'    A parameter translator allowing GPP, ER, and k600 to be used
 #'    as proposed parameters for an objective function using a
 #'    stream metabolism model.
 #' 
 #' @usage 
-#'    ParameterProcessorMetab$new()
+#'    ParameterTranslatorMetab$new()
 #' @return 
-#'    The object of class \code{ParameterProcessorMetab} 
+#'    The object of class \code{ParameterTranslatorMetab} 
 #'    instantiated by the constructor
-ParameterProcessorMetab <- R6Class(
-   classname = "ParameterProcessorMetab",
-   inherit = ParameterProcessor,
+ParameterTranslatorMetab <- R6Class(
+   classname = "ParameterTranslatorMetab",
+   inherit = ParameterTranslator,
    public = list(
-      process = function(params) 
+      translate = function(params) 
       {
          self$model$dailyGPP <- params[1];
          self$model$dailyER <- params[2];
@@ -35,28 +35,28 @@ ParameterProcessorMetab <- R6Class(
    )
 );
 
-# Class PredictionProcessorMetabDo (R6) ####
+# Class PredictionExtractorMetabDo (R6) ####
 
 #' @export
 #' 
 #' @title 
-#'    Class PredictionProcessorMetabDo (R6)
+#'    A prediction extractor for DO output from a metabolism model (R6)
 #'
 #' @description 
-#'    A prediction processor allowing dissolved oxygen outputs
+#'    A prediction extractor allowing dissolved oxygen outputs
 #'    from a stream metabolism model to be used as predictions
 #'    in an objective function.
 #' 
 #' @usage 
-#'    PredictionProcessorMetabDo$new()
+#'    PredictionExtractorMetabDo$new()
 #' @return 
-#'    The object of class \code{PredictionProcessorMetabDo} 
+#'    The object of class \code{PredictionExtractorMetabDo} 
 #'    instantiated by the constructor
-PredictionProcessorMetabDo <- R6Class(
-   classname = "PredictionProcessorMetabDoDic",
-   inherit = PredictionProcessor,
+PredictionExtractorMetabDo <- R6Class(
+   classname = "PredictionExtractorMetabDo",
+   inherit = PredictionExtractor,
    public = list(
-      process = function() 
+      extract = function() 
       {
          return(data.frame(
             do = self$model$output$do
@@ -65,28 +65,28 @@ PredictionProcessorMetabDo <- R6Class(
    )
 );
 
-# Class PredictionProcessorMetabDoDic (R6) ####
+# Class PredictionExtractorMetabDoDic (R6) ####
 
 #' @export
 #' 
 #' @title 
-#'    Class PredictionProcessorMetabDoDic (R6)
+#'    A prediction extractor for DO and pCO2 output from a metabolism model (R6)
 #'
 #' @description 
-#'    A prediction processor allowing dissolved oxygen and carbo
+#'    A prediction extractor allowing dissolved oxygen and carbo
 #'    dioxide outputs from a stream metabolism model to be used as 
 #'    predictions in an objective function.
 #' 
 #' @usage 
-#'    PredictionProcessorMetabDoDic$new()
+#'    PredictionExtractorMetabDoDic$new()
 #' @return 
-#'    The object of class \code{PredictionProcessorMetabDoDic} 
+#'    The object of class \code{PredictionExtractorMetabDoDic} 
 #'    instantiated by the constructor
-PredictionProcessorMetabDoDic <- R6Class(
-   classname = "PredictionProcessorMetabDoDic",
-   inherit = PredictionProcessor,
+PredictionExtractorMetabDoDic <- R6Class(
+   classname = "PredictionExtractorMetabDoDic",
+   inherit = PredictionExtractor,
    public = list(
-      process = function() 
+      extract = function() 
       {
          return(data.frame(
             do = self$model$output$do,

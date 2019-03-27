@@ -50,9 +50,12 @@ model <- ModelOneStationMetabDo$new(
 # Define the objective function to use in the optimization
 objFunc <- LogLikelihood$new(
    model = model,
-   parameterProcessor = ParameterProcessorMetab$new(),
-   predictionProcessor = PredictionProcessorMetabDo$new(),
-   synthErrorProcessor = SynthErrorNormal$new(mean = list(do = 0), sd = list(do =knownsdDO)),
+   parameterTranslator = ParameterTranslatorMetab$new(model),
+   predictionExtractor = PredictionExtractorMetabDo$new(model),
+   observationGenerator = ObservationGeneratorNormalErr$new(
+      mean = list(do = 0), 
+      sd = list(do =knownsdDO)
+      ),
    sd = knownsdDO,
    negate = TRUE
    );

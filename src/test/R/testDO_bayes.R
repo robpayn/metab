@@ -79,12 +79,11 @@ objFunc <- BayesLogLikelihood$new(
       ),
    baseObjFunc = LogLikelihood$new(
       model = model,
-      parameterProcessor = ParameterProcessorMetab$new(),
-      # predictionProcessor = DebugPredProc$new(),
-      predictionProcessor = PredictionProcessorMetabDo$new(),
-      synthErrorProcessor = SynthErrorNormal$new(
+      parameterTranslator = ParameterTranslatorMetab$new(model),
+      predictionExtractor = PredictionExtractorMetabDo$new(model),
+      observationGenerator = ObservationGeneratorNormalErr$new(
          mean = list(do = 0), 
-         sd = list(do = knownsdDO)
+         sd = list(do =knownsdDO)
          ),
       sd = knownsdDO
       )

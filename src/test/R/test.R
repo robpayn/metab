@@ -53,8 +53,8 @@ model <- ModelOneStationMetabDoDic$new(
 # Define the objective function to use in the optimization
 objFunc <- LogLikelihood$new(
    model = model,
-   parameterProcessor = ParameterProcessorMetab$new(),
-   predictionProcessor = PredictionProcessorMetabDoDic$new(),
+   parameterTranslator = ParameterTranslatorMetab$new(model),
+   predictionExtractor = PredictionExtractorMetabDoDic$new(model),
    synthErrorProcessor = SynthErrorNormal$new(
       mean = list(do = 0, pCO2 = 0), 
       sd = list(do = knownsdDO, pCO2 = knownsdpCO2)
