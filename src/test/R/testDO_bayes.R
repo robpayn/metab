@@ -1,5 +1,5 @@
 rm(list = ls());
-library(infmod);
+library(inferno);
 library(metab);
 
 # Read the data file that is providing sample PAR
@@ -111,7 +111,7 @@ sampler <- AdaptiveMCMCSampler$new(
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
-   statsLogger = StatsLoggerBayes$new()
+   statsLoggers = list(bayes = StatsLoggerBayes$new())
    );
 sampler$optimize();
 

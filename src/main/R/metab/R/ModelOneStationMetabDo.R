@@ -2,8 +2,8 @@
 
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
-#' @importFrom infmod Model
 #' @importFrom R6 R6Class
+#' @importFrom inferno Model
 NULL
 
 # Class ModelOneStationMetabDo (R6) ####
@@ -69,7 +69,7 @@ NULL
 #'    The standard air pressure in the desired units. Defaults to 760 mm Hg.
 #' @param doSatUnitConv
 #'    The unit conversion to convert the saturated DO concentration from
-#'    moles per liter. Defaults to 1.
+#'    micromoles per liter. Defaults to 1.
 #' @param doSatCalculator
 #'    The DO saturation calculator used to estimate DO saturation concentrations
 #'    at a given temperature and air pressure. 

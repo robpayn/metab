@@ -1,5 +1,5 @@
 rm(list = ls());
-library(infmod);
+library(inferno);
 library(metab);
 
 # Read the data file that is providing sample PAR

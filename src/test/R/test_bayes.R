@@ -64,7 +64,7 @@ objFunc <- BayesLogLikelihood$new(
       model = model,
       parameterTranslator = ParameterTranslatorMetab$new(model),
       predictionExtractor = PredictionExtractorMetabDoDic$new(model),
-      synthErrorProcessor = SynthErrorNormal$new(
+      observationGenerator = ObservationGeneratorNormalErr$new(
          mean = list(do = 0, pCO2 = 0), 
          sd = list(do = knownsdDO, pCO2 = knownsdpCO2)
          ),
@@ -94,8 +94,8 @@ sampler <- AdaptiveMCMCSampler$new(
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
-   filesPath = "./output_dodic",
-   statsLogger = StatsLoggerBayes$new()
+   outputPath = "./output_dodic",
+   statsLoggers = list(bayes = StatsLoggerBayes$new())
    );
 sampler$optimize();
 
