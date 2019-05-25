@@ -33,7 +33,7 @@ kHenryCO2fromTemp <- function(tempK)
 }
 
 
-# CarbonateEQ Class (R6) ####
+# Class CarbonateEQ (R6) ####
 
 #' @export
 #' 
@@ -499,7 +499,7 @@ CarbonateEq$set(
 );
 
 
-# Method optDICFromfCO2TotalAlk ####
+# Method CarbonateEq$optDICFromfCO2TotalAlk ####
 
 #' @name CarbonateEq_optDICFromfCO2TotalAlk
 #'
@@ -550,7 +550,7 @@ CarbonateEq$set(
 );
 
 
-# Method optTotalAlkFromfCO2DIC ####
+# Method CarbonateEq$optTotalAlkFromfCO2DIC ####
 
 #' @name CarbonateEq_optTotalAlkFromfCO2DIC
 #'
