@@ -97,3 +97,20 @@ PredictionExtractorMetabDoDic <- R6Class(
       }
    )
 );
+
+#' @export
+#' 
+#' @title 
+#'   A prediction extractor for pCO2 output from a metabolism model (R6)
+PredictionExtractorMetabDic <- R6Class(
+   classname = "PredictionExtractorMetabDic",
+   inherit = PredictionExtractor,
+   public = list(
+      extract = function() 
+      {
+         return(data.frame(
+            pCO2 = self$model$output$pCO2
+         ));
+      }
+   )
+);

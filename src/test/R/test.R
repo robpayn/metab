@@ -1,5 +1,5 @@
 rm(list = ls());
-library(infmod);
+library(inferno);
 library(metab);
 
 # Read the data file that is providing sample PAR
@@ -52,10 +52,12 @@ model <- ModelOneStationMetabDoDic$new(
 
 # Define the objective function to use in the optimization
 objFunc <- LogLikelihood$new(
-   model = model,
-   parameterTranslator = ParameterTranslatorMetab$new(model),
-   predictionExtractor = PredictionExtractorMetabDoDic$new(model),
-   synthErrorProcessor = SynthErrorNormal$new(
+   simulator = Simulator$new(
+      model = model,
+      parameterTranslator = ParameterTranslatorMetab$new(model),
+      predictionExtractor = PredictionExtractorMetabDoDic$new(model)
+   ),
+   observationGenerator = ObservationGeneratorNormalErr$new(
       mean = list(do = 0, pCO2 = 0), 
       sd = list(do = knownsdDO, pCO2 = knownsdpCO2)
       ),
