@@ -1,19 +1,25 @@
 # Package dependencies ####
 
 #' @importFrom R6 R6Class
+#' @importFrom stats optimize
 NULL
+
+
+# Function kHenryCO2fromTemp ####
 
 #' @export
 #' 
 #' @title
-#'    Calculate Henry's constant for CO2
+#'    Calculate Henry's constant for carbon dioxide
 #' 
 #' @description
-#'    Calculates Henry's constant for CO2 dissolution in 
-#'    water based on the provided temperature. (Weiss 1974 - Marine Chemistry)
+#'    Calculates Henry's constant for carbon dioxide dissolution in 
+#'    water based on the provided temperature. 
+#'    (Weiss 1974 - Marine Chemistry)
 #'    
 #' @param tempK 
 #'    Temperature in Kelvin
+#'    
 #' @return 
 #'    Henry's constant for CO2 in moles per liter per atmosphere
 #'    
@@ -26,29 +32,37 @@ kHenryCO2fromTemp <- function(tempK)
    ));
 }
 
+
 # CarbonateEQ Class (R6) ####
 
 #' @export
 #' 
 #' @title 
-#'    Class CarbonateEq
+#'    Class CarbonateEq (R6)
 #' 
 #' @description 
-#'    R6 class \code{CarbonateEq} defines a set of equilibrium
-#'    conditions for inorganic carbon at a given temperature 
-#'    in freshwater
+#'   Defines a set of equilibrium
+#'   conditions for inorganic carbon at a given temperature 
+#'   in freshwater.
 #' 
 #' @usage 
-#'    CarbonateEq$new(...)
+#'   CarbonateEq$new
+#'   
+#' @param tempC
+#'   Water temperature in degrees Celsius
+#' @param kHenryCO2fromTempFunc
+#'   Optional function to use for calculating Henry's constant.
+#'   Defaults to kHenryCO2fromTemp provided with the package.
 #' @param ... 
-#'    Arguments passed to constructor \code{CarbonateEq$new(...)} will be 
-#'    passed generically to the method \code{\link{CarbonateEq_resetFromTemp}} 
-#'    when it is called to initialize the object. 
-#'    See documentation for \code{\link{CarbonateEq_resetFromTemp}} 
-#'    for description of arguments.
+#'   Additional arguments will be 
+#'   passed generically to the method \code{\link{CarbonateEq_resetFromTemp}} 
+#'   when it is called to initialize the object. 
+#'   See documentation for \code{\link{CarbonateEq_resetFromTemp}}
+#'   for description of arguments.
+#'   
 #' @return 
-#'    The object of class \code{CarbonateEq} created
-#'    by the constructor
+#'   A reference to the object created by the constructor
+#'   
 CarbonateEq <- R6Class(
    classname = "CarbonateEq",
    public = list(
@@ -67,41 +81,50 @@ CarbonateEq <- R6Class(
       kDissocH2OApp = NULL,
       kHenryCO2 = NULL,
       kHenryCO2fromTempFunc = NULL,
-      initialize = function(kHenryCO2fromTempFunc = kHenryCO2fromTemp, tempC, ...)
+      initialize = function
+         (
+            tempC, 
+            kHenryCO2fromTempFunc = kHenryCO2fromTemp, 
+            ...
+         )
          {
             self$kHenryCO2fromTempFunc <- kHenryCO2fromTempFunc;
             self$resetFromTemp(tempC, ...);
          }
       )
-   );
+);
+
 
 # Method CarbonateEq$resetFromTemp ####
 
 #' @name CarbonateEq_resetFromTemp
 #' 
 #' @title
-#'    Reset the carbonate equlibrium
+#'    Reset the carbonate equilibrium
 #'
 #' @description
-#'    Resets equilibrium constants based on the provided temperature
+#'    Resets equilibrium constants in attributes of the object
+#'    based on the provided temperature
 #'
 #' @param tempC 
-#'    Temperature in degrees Celsius
+#'    Water temperature in degrees Celsius
 #' @param tempK
 #'    Temperature in Kelvin. Defaults to tempC argument plus 273.15
 #' @param eConduct 
-#'    Electrical conductivity in mS cm-1, default is set to zero
-#'    which will result in the ideal case of activity equal to concentration
+#'    Electrical conductivity in milliSiemens per cm, default is set to zero
+#'    which will result in the ideal case of solute activities equal to 
+#'    their concentrations
 #' @param ionicStrength 
-#'    Ionic strength in mol L-1, default is set as a linear correlate
-#'    of electrical conductivity as suggested by Griffin and Jurinak
-#'    (1973 - Soil Science)
+#'    Ionic strength in moles per liter, default is set as a linear correlate
+#'    of electrical conductivity as suggested by 
+#'    Griffin and Jurinak (1973 - Soil Science)
 #' @param daviesParam 
 #'    Parameter for Davies equation derivation, defaults to
 #'    \code{0.5092 + (tempC - 25) * 0.00085}
 #' @param daviesExponent 
 #'    Factor for exponent in Davies equation, defaults to
 #'    \code{(ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) - 0.3 * ionicStrength)}
+#'    
 #' @return 
 #'    A named vector with 2 values: the previous temperature and the new temperature
 #'    
@@ -116,8 +139,8 @@ CarbonateEq$set(
          ionicStrength = 0.013 * eConduct,
          daviesParam = 0.5092 + (tempC - 25) * 0.00085,
          daviesExponent = -daviesParam *
-         (ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) -
-         0.3 * ionicStrength)
+            ( ionicStrength ^ 0.5 / (1 + ionicStrength ^ 0.5) -
+            0.3 * ionicStrength )
       )
       {
          prevTemp <- self$tempC;
@@ -162,28 +185,29 @@ CarbonateEq$set(
       }
 );
 
-# Method CarbonateEq$getTotalAlk ####
 
-#' @name CarbonateEq_getTotalAlk
+# Method CarbonateEq$calcTotalAlkFromDICpH ####
+
+#' @name CarbonateEq_calcTotalAlkFromDICpH
 #'
 #' @title
-#'    Get the total alkalinity
+#'   Calculate total alkalinity
 #'
 #' @description 
-#'    Method to get the total alkalinity for a known
-#'    equilibrium scenario based on a known dissolved inorganic carbon
-#'    concentration and pH
+#'   Calculates the total alkalinity based on a provided DIC concentration
+#'   and pH. This is a simplified alkalinity based only on carbonate species.
 #'
 #' @param concDIC 
 #'    Dissolved inorganic carbon concentration in molality
 #' @param pH 
 #'    The pH of the solution (minus the log10 of H+ concentration in molality)
+#'    
 #' @return 
 #'    Total alkalinity in charge molality
 #'    
 CarbonateEq$set(
    which = "public",
-   name = "getTotalAlk",
+   name = "calcTotalAlkFromDICpH",
    value = function(concDIC, pH)
       {
          concH = 10 ^ -pH;
@@ -198,35 +222,105 @@ CarbonateEq$set(
       }
 );
 
-# Method CarbonateEq$optimizepH ####
 
-#' @name CarbonateEq_optimizepH
+# Method CarbonateEq$calcTotalAlkFromConcCO2pH ####
+
+#' @name CarbonateEq_calcTotalAlkFromConcCO2pH
 #'
 #' @title
-#'    Optimize to infer pH
+#'   Calculate total alkalinity
+#'
+#' @description 
+#'   Calculates the total alkalinity based on a provided carbon dioxide concentration
+#'   and pH. This is a simplified alkalinity based only on carbonate species.
+#'
+#' @param concCO2 
+#'   Concentration of carbon dioxide in molality
+#' @param pH 
+#'   The pH of the solution (minus the log10 of H+ concentration in molality)
+#'    
+#' @return 
+#'   Total alkalinity in charge molality
+#'    
+CarbonateEq$set(
+   which = "public",
+   name = "calcTotalAlkFromConcCO2pH",
+   value = function(concCO2, pH)
+      {
+         concH <- 10 ^ -pH;
+         concOH <- self$kDissocH2OApp / concH;
+         concHCO3 <- concCO2 * self$kDissocH2CO3App / concH;
+         concCO3 <- concHCO3 * self$kDissocHCO3App / concH;
+         return(concHCO3 + 2 * concCO3 + concOH - concH);
+      }
+);
+
+
+# Method CarbonateEq$calcDICFromConcCO2pH ####
+
+#' @name CarbonateEq_calcDICFromConcCO2pH
+#'
+#' @title
+#'   Calculate dissolved inorganic carbon
+#'
+#' @description 
+#'   Calculates dissolved inorganic carbon based on a provided carbon dioxide concentration
+#'   and pH.
+#'
+#' @param concCO2 
+#'   Concentration of carbon dioxide in molality
+#' @param pH 
+#'   The pH of the solution (minus the log10 of H+ concentration in molality)
+#'    
+#' @return 
+#'   Dissolved inorganic carbon concentration in molality of C
+#'    
+CarbonateEq$set(
+   which = "public",
+   name = "calcDICFromConcCO2pH",
+   value = function(concCO2, pH)
+   {
+      concH <- 10 ^ -pH;
+      return(
+         concCO2 * concH ^ -2 * 10 ^ -(6 * self$daviesExponent) *
+            ( concH ^ 2 * 10 ^ (6 * self$daviesExponent) +
+                 self$kDissocH2CO3App * concH * 10 ^ (4 * self$daviesExponent) +
+                 self$kDissocH2CO3App * self$kDissocHCO3App )
+      );
+   }
+);
+
+
+# Method CarbonateEq$optpHFromDICTotalAlk ####
+
+#' @name CarbonateEq_optpHFromDICTotalAlk
+#'
+#' @title
+#'    Infer the pH
 #'
 #' @description
-#'    Method to perform the optimization necessary to get the pH for a known
-#'    equilibrium scenario based on known dissolved inorganic carbon
-#'    and total alkalinity
+#'    Uses a single parameter optimization to infer the pH from a given
+#'    DIC concentration and total alkalinity. The pH is inferred by 
+#'    changing its value until the resulting calculated alkalinity
+#'    matches the provided alkalinity.
 #'
 #' @param concDIC 
 #'    Dissolved inorganic carbon concentration in molality
 #' @param totalAlk 
-#'    The measured or otherwise known total alkalinity in charge molality
+#'    The total alkalinity in charge molality
 #' @param tolerance 
-#'    The tolerance used for convergence in the optimization algorithm,
-#'    default value is 1e-5
+#'    The tolerance used for convergence in the optimization algorithm.
+#'    Default value is 1e-5.
 #' @param range 
-#'    Range in pH values to constrain the optimization,
-#'    default range is 2 < pH < 12
+#'    Range in pH values to constrain the optimization.
+#'    Default range is 2 < pH < 12.
+#'    
 #' @return 
-#'    An optimized value of the pH based on finding the calculated total Alkalinity
-#'    from DIC that matches the observed alkalinity provided
+#'    The inferred pH.
 #'    
 CarbonateEq$set(
    which = "public",
-   name = "optimizepH",
+   name = "optpHFromDICTotalAlk",
    value = function
       (
          concDIC,
@@ -238,27 +332,129 @@ CarbonateEq$set(
          optr <- optimize(
             f = function(pH)
                {
-                  return ( (totalAlk - self$getTotalAlk(concDIC, pH))^2 );
+                  return ( (totalAlk - self$calcTotalAlkFromDICpH(concDIC, pH))^2 );
                },
             interval = range,
             tol = tolerance
-            );
+         );
          return(optr$minimum);
       }
 );
 
-# CarbonateEq$optimizepCO2 ####
 
-#' @name CarbonateEq_optimizepCO2
+# Method CarbonateEq$optpHFromConcCO2TotalAlk ####
+
+#' @name CarbonateEq_optpHFromConcCO2TotalAlk
 #'
 #' @title
-#'    Optimize to infer pCO2
+#'    Infer the pH
 #'
 #' @description
-#'    Method to calculate the pCO2 derived from
-#'    the optimization necessary to get the pH for a known
-#'    equilibrium scenario based on known dissolved inorganic carbon
-#'    and total alkalinity
+#'    Uses a single parameter optimization to infer the pH from a given
+#'    carbon dioxide concentration and total alkalinity. The pH is inferred by 
+#'    changing its value until the resulting calculated alkalinity
+#'    matches the provided alkalinity.
+#'
+#' @param concCO2 
+#'    Dissolved carbon dioxide concentration in molality
+#' @param totalAlk 
+#'    The total alkalinity in charge molality
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm.
+#'    Default value is 1e-5.
+#' @param range 
+#'    Range in pH values to constrain the optimization.
+#'    Default range is 2 < pH < 12.
+#'    
+#' @return 
+#'    The inferred pH.
+#'    
+CarbonateEq$set(
+   which = "public",
+   name = "optpHFromConcCO2TotalAlk",
+   value = function
+   (
+      concCO2,
+      totalAlk,
+      tolerance = 1e-5,
+      range = c(12, 2)
+   )
+   {
+      optr <- optimize(
+         f = function(pH)
+         {
+            return ( (totalAlk - self$calcTotalAlkFromConcCO2pH(concCO2, pH))^2 );
+         },
+         interval = range,
+         tol = tolerance
+      );
+      return(optr$minimum);
+   }
+);
+
+
+# Method CarbonateEq$optpHFromConcCO2DIC ####
+
+#' @name CarbonateEq_optpHFromConcCO2DIC
+#'
+#' @title
+#'    Infer the pH
+#'
+#' @description
+#'    Uses a single parameter optimization to infer the pH from provided
+#'    carbon dioxide and dissolved inorganic carbon concentrations . 
+#'    The pH is inferred by 
+#'    changing its value until the resulting calculated dissolved inorganic
+#'    carbon matches the provided value.
+#'
+#' @param concCO2 
+#'    Dissolved carbon dioxide concentration in molality
+#' @param concDIC 
+#'    The dissolved inorganic carbon in molality of C
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm.
+#'    Default value is 1e-5.
+#' @param range 
+#'    Range in pH values to constrain the optimization.
+#'    Default range is 2 < pH < 12.
+#'    
+#' @return 
+#'    The inferred pH.
+#'    
+CarbonateEq$set(
+   which = "public",
+   name = "optpHFromConcCO2DIC",
+   value = function
+   (
+      concCO2,
+      concDIC,
+      tolerance = 1e-5,
+      range = c(12, 2)
+   )
+   {
+      optr <- optimize(
+         f = function(pH)
+         {
+            return ( (concDIC - self$calcDICFromConcCO2pH(concCO2, pH))^2 );
+         },
+         interval = range,
+         tol = tolerance
+      );
+      return(optr$minimum);
+   }
+);
+
+
+# Method CarbonateEq$optfCO2FromDICTotalAlk ####
+
+#' @name CarbonateEq_optfCO2FromDICTotalAlk
+#'
+#' @title
+#'    Infer fCO2
+#'
+#' @description
+#'    Uses a pH optimization to infer the fugacity of carbon dioxide based
+#'    on the provided DIC concentration and total alkalinity
 #'
 #' @param concDIC 
 #'    Dissolved inorganic carbon concentration in molality
@@ -270,15 +466,14 @@ CarbonateEq$set(
 #' @param range 
 #'    Range in pH values to constrain the optimization,
 #'    default range is 2 < pH < 12
+#'    
 #' @return 
-#'    A named list of the optimized values of the pCO2 and pH based on finding the
-#'    calculated total Alkalinity from DIC that matches the observed alkalinity provided
-#'    \code{list(pH = <optimized pH value>, pCO2 = <pCO2 value calculated from pH>)}.
+#'    A named list of the inferred pCO2 and pH.
 #'    Value of pCO2 is in units of microatmospheres.
 #'    
 CarbonateEq$set(
    which = "public",
-   name = "optimizepCO2",
+   name = "optfCO2FromDICTotalAlk",
    value = function
       (
          concDIC,
@@ -287,7 +482,7 @@ CarbonateEq$set(
          range = c(12, 2)
       )
       {
-         pH <- self$optimizepH(
+         pH <- self$optpHFromDICTotalAlk(
             concDIC = concDIC,
             totalAlk = totalAlk,
             tolerance = tolerance,
@@ -303,45 +498,35 @@ CarbonateEq$set(
       }
 );
 
-CarbonateEq$set(
-   which = "public",
-   name = "getTotalAlkFromConcCO2",
-   value = function(concCO2, pH)
-   {
-      concH <- 10 ^ -pH;
-      concOH <- self$kDissocH2OApp / concH;
-      concHCO3 <- concCO2 * self$kDissocH2CO3App / concH;
-      concCO3 <- concHCO3 * self$kDissocHCO3App / concH;
-      return(concHCO3 + 2 * concCO3 + concOH - concH);
-   }
-);
 
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepHFromConcCO2",
-   value = function
-   (
-      concCO2,
-      totalAlk,
-      tolerance = 1e-5,
-      range = c(12, 2)
-   )
-   {
-      optr <- optimize(
-         f = function(pH)
-         {
-            return ( (totalAlk - self$getTotalAlkFromConcCO2(concCO2, pH))^2 );
-         },
-         interval = range,
-         tol = tolerance
-      );
-      return(optr$minimum);
-   }
-);
+# Method optDICFromfCO2TotalAlk ####
 
+#' @name CarbonateEq_optDICFromfCO2TotalAlk
+#'
+#' @title
+#'    Infer dissolved inorganic carbon
+#'
+#' @description
+#'    Uses a pH optimization to infer the dissolved inorganic carbon based
+#'    on the provided fugacity of carbon dioxide and total alkalinity
+#'
+#' @param fCO2 
+#'    Fugacity of carbon dioxide in microatmospheres
+#' @param totalAlk 
+#'    The measured or otherwise known total alkalinity in charge molality
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm,
+#'    default value is 1e-5
+#' @param range 
+#'    Range in pH values to constrain the optimization,
+#'    default range is 2 < pH < 12
+#'    
+#' @return 
+#'    A named list of the inferred DIC concentration in molality and pH.
+#'    
 CarbonateEq$set(
    which = "public",
-   name = "optimizeDIC",
+   name = "optDICFromfCO2TotalAlk",
    value = function 
    (
       fCO2,
@@ -351,7 +536,7 @@ CarbonateEq$set(
    )
    {
       concCO2 <- fCO2 * 1e-6 * self$kHenryCO2;
-      pH <- self$optimizepHFromConcCO2(
+      pH <- self$optpHFromConcCO2TotalAlk(
          concCO2 = concCO2,
          totalAlk = totalAlk,
          tolerance = tolerance,
@@ -359,52 +544,42 @@ CarbonateEq$set(
       );
       return(list(
          pH = pH, 
-         concDIC = self$getConcDICFromConcCO2(concCO2 = concCO2, pH = pH)
+         concDIC = self$calcDICFromConcCO2pH(concCO2 = concCO2, pH = pH)
       ));
    }
 );
 
-CarbonateEq$set(
-   which = "public",
-   name = "getConcDICFromConcCO2",
-   value = function(concCO2, pH)
-   {
-      concH <- 10 ^ -pH;
-      return(
-         concCO2 * concH ^ -2 * 10 ^ -(6 * self$daviesExponent) *
-             ( concH ^ 2 * 10 ^ (6 * self$daviesExponent) +
-                  self$kDissocH2CO3App * concH * 10 ^ (4 * self$daviesExponent) +
-                  self$kDissocH2CO3App * self$kDissocHCO3App )
-      );
-   }
-);
 
-CarbonateEq$set(
-   which = "public",
-   name = "optimizepHFromConcCO2DIC",
-   value = function
-   (
-      concCO2,
-      concDIC,
-      tolerance = 1e-5,
-      range = c(12, 2)
-   )
-   {
-      optr <- optimize(
-         f = function(pH)
-         {
-            return ( (concDIC - self$getConcDICFromConcCO2(concCO2, pH))^2 );
-         },
-         interval = range,
-         tol = tolerance
-      );
-      return(optr$minimum);
-   }
-);
+# Method optTotalAlkFromfCO2DIC ####
 
+#' @name CarbonateEq_optTotalAlkFromfCO2DIC
+#'
+#' @title
+#'    Infer total alkalinity
+#'
+#' @description
+#'    Uses a pH optimization to infer the total alkalinity based
+#'    on the provided fugacity of carbon dioxide and dissolved
+#'    inorganic carbon. Total alkalinity is assumed to be dominated
+#'    by carbonate species.
+#'
+#' @param fCO2 
+#'    Fugacity of carbon dioxide in microatmospheres
+#' @param concDIC 
+#'    The dissolved inorganic carbon in molality of C
+#' @param tolerance 
+#'    The tolerance used for convergence in the optimization algorithm,
+#'    default value is 1e-5
+#' @param range 
+#'    Range in pH values to constrain the optimization,
+#'    default range is 2 < pH < 12
+#'    
+#' @return 
+#'    A named list of the inferred alkalinity in charge molality and pH.
+#'    
 CarbonateEq$set(
    which = "public",
-   name = "optimizeTotalAlkalinity",
+   name = "optTotalAlkFromfCO2DIC",
    value = function 
    (
       fCO2,
@@ -414,7 +589,7 @@ CarbonateEq$set(
    )
    {
       concCO2 <- fCO2 * 1e-6 * self$kHenryCO2;
-      pH <- self$optimizepHFromConcCO2DIC(
+      pH <- self$optpHFromConcCO2DIC(
          concCO2 = concCO2,
          concDIC = concDIC,
          tolerance = tolerance,
@@ -422,7 +597,7 @@ CarbonateEq$set(
       );
       return(list(
          pH = pH, 
-         totalAlk = self$getTotalAlkFromConcCO2(concCO2 = concCO2, pH = pH)
+         totalAlk = self$calcTotalAlkFromConcCO2pH(concCO2 = concCO2, pH = pH)
       ));
    }
 );

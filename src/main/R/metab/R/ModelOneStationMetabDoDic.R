@@ -76,7 +76,7 @@ ModelOneStationMetabDoDic <- R6Class(
                      "or initialpCO2)"
                   ));
                } else {
-                  self$initialDIC <- 1e6 * self$carbonateEq$optimizeDIC(
+                  self$initialDIC <- 1e6 * self$carbonateEq$optDICFromfCO2TotalAlk(
                         initialpCO2[1],
                         self$alkalinity[1] * 1e-6
                      )$concDIC;
@@ -153,7 +153,7 @@ ModelOneStationMetabDoDic$set(
          
          # Set the initial DIC concentration, pCO2, and fgas
          self$output$dic[1] <- self$initialDIC[1];
-         self$output$pCO2[1] <- self$carbonateEq$optimizepCO2(
+         self$output$pCO2[1] <- self$carbonateEq$optfCO2FromDICTotalAlk(
                concDIC = self$initialDIC[1] * 1e-6, 
                totalAlk = self$alkalinity[1] * 1e-6
             )$fCO2;
@@ -172,7 +172,7 @@ ModelOneStationMetabDoDic$set(
             # Calculate pCO2 and fGas based on new DIC
             self$carbonateEq$resetFromTemp(tempC = self$temp[i]);
             self$output$kH[i] <- self$carbonateEq$kHenryCO2; 
-            optim <- self$carbonateEq$optimizepCO2(
+            optim <- self$carbonateEq$optfCO2FromDICTotalAlk(
                concDIC = self$output$dic[i] * 1e-6,
                totalAlk = self$alkalinity * 1e-6
                );
