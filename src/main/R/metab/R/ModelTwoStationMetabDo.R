@@ -284,75 +284,83 @@ ModelTwoStationMetabDo <- R6Class(
                );
                self$parTotal <- sum(parAverage * dtUpstream);
             }
-         },
-      run = function() {
-            # Calculates the saturated oxygen concentration for the 
-            # provided temperatures and air pressure
-            upstreamDOSat <- self$doSatFunc(
-               self$temp$upstream, 
-               self$airPressure, 
-               self$densityWaterFunc
-            );
-            upstreamDODeficit <- upstreamDOSat - self$upstreamDO;
-            
-            downstreamDOSat <- self$doSatFunc(
-               self$temp$downstream, 
-               self$airPressure, 
-               self$densityWaterFunc
-            );
-            
-            # Calculate the temperature adjusted gas exchange rate from 
-            # the k600 rate at a Schmidt number of 600
-            k <- self$kSchmidtFunc(
-               (self$temp$upstream + self$temp$downstream) / 2, 
-               self$k600
-            );
-           
-            # Calculate the DO production and consumption for
-            # each time step
-            doProduction <- self$dailyGPP * 
-               ((self$par * self$residenceTime) / self$parTotal); 
-            doConsumption <- rep(
-               x = self$residenceTime * self$dailyER,
-               times = length(self$time$upstream)
-            );
-
-            # Calculate the downstream DO concentration 
-            downstreamDO <- 
-               (
-                  self$upstreamDO +
-                     doProduction +
-                     doConsumption +
-                     self$residenceTime * 
-                        k * 
-                        ((upstreamDODeficit + downstreamDOSat) / 2)
-               ) / 
-               (
-                  1 + (
-                     (self$residenceTime * k) / 2
-                  )
-               );
-            
-            self$output <- data.frame(
-               time = as.POSIXct(
-                  self$time$downstream * 86400, 
-                  origin = as.POSIXct("1970-01-01", tz = "GMT")
-               ),
-               do = downstreamDO,
-               doSat = downstreamDOSat,
-               doProduction = doProduction,
-               doConsumption = doConsumption,
-               k = k,
-               temp = self$temp$downstream,
-               upstreamTime = as.POSIXct(
-                  self$time$upstream * 86400, 
-                  origin = as.POSIXct("1970-01-01", tz = "GMT")
-               ),
-               upstreamDO = self$upstreamDO,
-               upstreamDOSat = upstreamDOSat,
-               upstreamTemp = self$temp$upstream
-            );
-            return(self$output);
          }
-   )
+      )
+);
+
+# Method ModelTwoStationMetabDo$run ####
+
+ModelTwoStationMetabDo$set(
+   which = "public",
+   name = "run",
+   value = function() 
+      {
+         # Calculates the saturated oxygen concentration for the 
+         # provided temperatures and air pressure
+         upstreamDOSat <- self$doSatFunc(
+            self$temp$upstream, 
+            self$airPressure, 
+            self$densityWaterFunc
+         );
+         upstreamDODeficit <- upstreamDOSat - self$upstreamDO;
+         
+         downstreamDOSat <- self$doSatFunc(
+            self$temp$downstream, 
+            self$airPressure, 
+            self$densityWaterFunc
+         );
+         
+         # Calculate the temperature adjusted gas exchange rate from 
+         # the k600 rate at a Schmidt number of 600
+         k <- self$kSchmidtFunc(
+            (self$temp$upstream + self$temp$downstream) / 2, 
+            self$k600
+         );
+         
+         # Calculate the DO production and consumption for
+         # each time step
+         doProduction <- self$dailyGPP * 
+            ((self$par * self$residenceTime) / self$parTotal); 
+         doConsumption <- rep(
+            x = self$residenceTime * self$dailyER,
+            times = length(self$time$upstream)
+         );
+         
+         # Calculate the downstream DO concentration 
+         downstreamDO <- 
+            (
+               self$upstreamDO +
+                  doProduction +
+                  doConsumption +
+                  self$residenceTime * 
+                  k * 
+                  ((upstreamDODeficit + downstreamDOSat) / 2)
+            ) / 
+            (
+               1 + (
+                  (self$residenceTime * k) / 2
+               )
+            );
+         
+         self$output <- data.frame(
+            time = as.POSIXct(
+               self$time$downstream * 86400, 
+               origin = as.POSIXct("1970-01-01", tz = "GMT")
+            ),
+            do = downstreamDO,
+            doSat = downstreamDOSat,
+            doProduction = doProduction,
+            doConsumption = doConsumption,
+            k = k,
+            temp = self$temp$downstream,
+            upstreamTime = as.POSIXct(
+               self$time$upstream * 86400, 
+               origin = as.POSIXct("1970-01-01", tz = "GMT")
+            ),
+            upstreamDO = self$upstreamDO,
+            upstreamDOSat = upstreamDOSat,
+            upstreamTemp = self$temp$upstream
+         );
+         return(self$output);
+      }
 );

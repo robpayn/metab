@@ -5,7 +5,7 @@
 #' @importFrom R6 R6Class
 NULL
 
-# Utility functions ####
+# Water density function ####
 
 #' @export
 #' 
@@ -32,6 +32,8 @@ densityWater <- function(temp)
          6.5363e-12 * temp^5
    );
 }
+
+# Gas exchange temperature correction function ####
 
 #' @export
 #' 
@@ -202,7 +204,7 @@ DoSatCalculator$set(
 #'   Default value is NA, which disables daylight savings adjustments.
 #' @param solarConstantFlux
 #'   Base flux of energy from the sun.
-#'   Default value is 1365 Watts per square meter
+#'   Default value is 1364 Watts per square meter
 #' @param earthAngularVelocity
 #'   Angular velocity of earth's rotation in radians per hour.
 #'   Default value is 0.2618.

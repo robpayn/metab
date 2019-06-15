@@ -11,23 +11,11 @@ NULL
 #' @export
 #' 
 #' @title 
-#'   Basic MLE inference for one-station stream metabolism
+#'   Basic MLE inference for One Station stream metabolism
 #'   
-#' @description 
-#'   Processes a signal of DO and pCO2 data 
-#'   (with supporting PAR and temperature information)
-#'   for inferring whole-stream metabolism using the one-station
-#'   method.
-#'   
-#' @section Implements interface \link{SignalDerivation}:
-#'   \code{$derive}
-#'   \itemize{
-#'     \item see \code{\link{SignalDerivation_derive}}
-#'     \item see \code{\link{OneStationMetabMLE_derive}}
-#'   }
-OneStationMetabMLE <- R6Class(
-   classname = "OneStationMetabMLE",
-   inherit = SignalDerivation,
+TwoStationMetabMLE <- R6Class(
+   classname = "TwoStationMetabMLE",
+   inherit = TransferFunctionDerivation,
    public = list(
       initParams = NULL,
       staticAirPressure = NULL,
@@ -63,40 +51,34 @@ OneStationMetabMLE <- R6Class(
    )
 );
 
-# Method OneStationMetabMLE$derive ####
+# Method TwoStationMetabMLE$derive ####
 
-#' @name OneStationMetabMLE_derive
-#' 
-#' @title 
-#'   Infers metabolic parameters from signal
-#'   
-#' @description 
-#'   Uses a one-station model to infer whole-stream metabolism and
-#'   gas exchange parameters from a single signal.
-#'   
-#' @section Method of class:
-#'   \code{\link{OneStationMetabMLE}}
-#'
-#' @section Implementation of abstract method:
-#'   \code{\link{SignalDerivation_derive}} -
-#'     See interface for documentation
-#'   
-OneStationMetabMLE$set(
+TwoStationMetabMLE$set(
    which = "public",
    name = "derive",
    value = function
       (
-         signal = NULL, 
+         signalIn = NULL,
+         signalOut = NULL,
          prevResults = NULL, 
          path
       ) 
       {
-         if(!is.null(signal)) {
-            self$signal <- signal;
+         if(!is.null(signalIn)) {
+            self$signalIn <- signalIn;
          } else {
-            if(is.null(self$signal)) {
+            if(is.null(self$signalIn)) {
                stop(paste(
-                  "Signal not provided to SignalDerivation$derive."
+                  "Input signal not provided to SignalDerivation$derive."
+               ));
+            }
+         }
+         if(!is.null(signalOut)) {
+            self$signalOut <- signalOut;
+         } else {
+            if(is.null(self$signalOut)) {
+               stop(paste(
+                  "Output signal not provided to SignalDerivation$derive."
                ));
             }
          }
@@ -120,48 +102,58 @@ OneStationMetabMLE$set(
             }
          }
          
+         par <- 0.5 *
+            (
+               signalIn$getVariable("par") + 
+               signalOut$getVariable("par")
+            );
+         
          if(!self$usepCO2) {
-            model <- ModelOneStationMetabDo$new(
+            model <- TwoStationMetabDO$new(
                dailyGPP = self$initParams[1],
                dailyER = self$initParams[2],
                k600 = self$initParams[3],
                airPressure = airPressure,
-               time = self$signal$time,
-               initialDO = self$signal$getVariable("do"),
-               temp = self$signal$getVariable("temp"),
-               par = self$signal$getVariable("par"),
+               par = par,
+               upstreamTime = signalIn$time,
+               upstreamTemp = signalIn$getVariable("temp"),
+               upstreamDO = signalIn$getVariable("do"),
+               downstreamTime = signalOut$time,
+               downstreamTemp = signalOut$getVariable("temp"),
                stdAirPressure = 1
             );
          } else {
-            pCO2obs <- self$signal$getVariable("pCO2");
-            pCO2obs <- pCO2obs[is.finite(pCO2obs)];
-            model <- ModelOneStationMetabDoDic$new(
+            upstreampCO2 <- self$signalIn$getVariable("pCO2");
+            upstreampCO2 <- upstreampCO2[is.finite(upstreampCO2)];
+            model <- TwoStationMetabDoDic$new(
                dailyGPP = self$initParams[1],
                dailyER = self$initParams[2],
                k600 = self$initParams[3],
                airPressure = airPressure,
-               time = self$signal$time,
-               initialDO = self$signal$getVariable("do"),
-               temp = self$signal$getVariable("temp"),
-               par = self$signal$getVariable("par"),
+               par = par,
+               upstreamTime = signalIn$time,
+               upstreamTemp = signalIn$getVariable("temp"),
+               upstreamDO = signalIn$getVariable("do"),
+               downstreamTime = signalOut$time,
+               downstreamTemp = signalOut$getVariable("temp"),
                stdAirPressure = 1,
-               initialpCO2 = pCO2obs[1],
+               upstreampCO2 = upstreampCO2,
                pCO2air = co2Air,
                alkalinity = alkalinity
             );
          }
          
          if (self$useDO) {
-            observation <- data.frame(do = self$signal$getVariable("do"));
+            observation <- data.frame(do = self$signalOut$getVariable("do"));
             if (self$usepCO2) {
-               observation$pCO2 <- self$signal$getVariable("pCO2");
+               observation$pCO2 <- self$signalOut$getVariable("pCO2");
                predictionExtractor <- PredictionExtractorMetabDoDic$new(model);
             } else {
                predictionExtractor <- PredictionExtractorMetabDo$new(model);
             }
             
          } else if (self$usepCO2) {
-            observation <- data.frame(pCO2 = self$signal$getVariable("pCO2"));
+            observation <- data.frame(pCO2 = self$signalOut$getVariable("pCO2"));
             predictionExtractor <- PredictionExtractorMetabDic$new(model);
          } else {
             stop("Cannot perform MLE without at least one observation variable.");
@@ -171,7 +163,7 @@ OneStationMetabMLE$set(
                model = model,
                parameterTranslator = ParameterTranslatorMetab$new(model),
                predictionExtractor = predictionExtractor
-            ),
+               ),
             observation = observation,
             sd = self$sdLikelihood,
             negate = TRUE
@@ -191,7 +183,10 @@ OneStationMetabMLE$set(
          }
          optimr <- optim(
             par = par,
-            fn = objFunc$propose
+            fn = objFunc$propose,
+            method = "L-BFGS-B",
+            lower = c(0, -Inf, 0),
+            upper = c(Inf, 0, Inf)
          );
          objFunc$propose(optimr$par);
          results <- list(objFunc = objFunc, optimr = optimr);

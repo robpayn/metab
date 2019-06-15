@@ -119,6 +119,8 @@ OneStationMetabPlotter$set(
             stringsAsFactors = FALSE
          );
          
+         # Plot DO
+         
          # Determine y axis scale for DO
          ylim <- c(
             min(self$signal$dataFrame$data$do),
@@ -148,18 +150,12 @@ OneStationMetabPlotter$set(
          }
          # Plot the DO observations
          self$signal$plot(
-            header = "do",
+            variableName = "do",
             xaxt = "n",
             ylim = ylim,
             pch = ld["doObs", "pch"],
             col = ld["doObs", "col"],
             lwd = ld["doObs", "lwd"]
-         );
-         mtext(
-            side = 3,
-            line = 0.5,
-            text = label,
-            cex = 0.7
          );
          axis.POSIXct(
             side = 1,
@@ -170,6 +166,14 @@ OneStationMetabPlotter$set(
                ),
             format = "%H:%M"
          );
+         mtext(
+            side = 3,
+            line = 0.5,
+            adj = 0,
+            text = label,
+            cex = 0.7
+         );
+         
          # Plot the best fit DO model if results are plotted
          if (plotResults) {
             lines(
@@ -186,13 +190,25 @@ OneStationMetabPlotter$set(
                col = ld["doPred", "col"],
                lwd = ld["doPred", "lwd"]
             );
+            mtext(
+               text = sprintf(
+                  fmt = "GPP = %1.2e",
+                  results$objFunc$params[1]
+               ),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 1
+            );
          }
+         
+         # Plot pCO2
          
          # Reset the axes scaling for pCO2 plot
          par(new = TRUE);
          # Plot the pCO2 observations
          self$signal$plot(
-            header = "pCO2",
+            variableName = "pCO2",
             xaxt = "n",
             yaxt = "n",
             ylab = "",
@@ -206,7 +222,7 @@ OneStationMetabPlotter$set(
          mtext(
             text = sprintf(
                "%s (%s)",
-               ld["pCO2Obs", "name"],
+               "pCO2",
                self$signal$dataFrame$metaColumns["pCO2",]$units
             ),
             side = 4,
@@ -214,20 +230,22 @@ OneStationMetabPlotter$set(
             cex = 0.7,
             col = ld["pCO2Obs", "col"]
          );
-         if (plotResults & !is.null(self$results$objFunc$model$output$pCO2)) {
-            lines(
-               x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$output$pCO2,
-               lty = ld["pCO2Pred", "lty"],
-               col = ld["pCO2Pred", "col"],
-               lwd = ld["pCO2Pred", "lwd"]
-            );
+         if (plotResults) {
+            if (!is.null(self$results$objFunc$model$output$pCO2)) {
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$output$pCO2,
+                  lty = ld["pCO2Pred", "lty"],
+                  col = ld["pCO2Pred", "col"],
+                  lwd = ld["pCO2Pred", "lwd"]
+               );
+            }
          }
 
          # Reset the axes scaling for PAR reference
          par(new = TRUE);
          self$signal$plot(
-            header = "par",
+            variableName = "par",
             type = "l",
             lty = ld["par", "lty"],
             col = ld["par", "col"],
@@ -240,7 +258,7 @@ OneStationMetabPlotter$set(
          
          # Plot temperature on a new plot
          self$signal$plot(
-            header = "temp",
+            variableName = "temp",
             pch = ld["temp", "pch"],
             col = ld["temp", "col"],
             lwd = ld["temp", "lwd"],
@@ -255,12 +273,34 @@ OneStationMetabPlotter$set(
                ),
             format = "%H:%M"
          );
+         if (plotResults) {
+            mtext(
+               text = sprintf(
+                  fmt = "ER = %1.2e",
+                  results$objFunc$params[2]
+               ),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 0
+            );
+            mtext(
+               text = sprintf(
+                  fmt = "k600 = %1.2e",
+                  results$objFunc$params[3]
+               ),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 1
+            );
+         }
          
          # Reset axes scaling for PAR
          par(new = TRUE);
          # Plot PAR on the temperature plot
          self$signal$plot(
-            header = "par",
+            variableName = "par",
             type = "l",
             lty = ld["par", "lty"],
             col = ld["par", "col"],
