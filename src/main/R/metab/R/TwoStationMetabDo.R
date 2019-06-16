@@ -8,7 +8,7 @@ NULL
 
 #' @export
 #' 
-TwoStationMetabDO <- R6Class(
+TwoStationMetabDo <- R6Class(
    classname = "TwoStationMetabDo",
    inherit = Model,
    public = list(
@@ -102,7 +102,7 @@ TwoStationMetabDO <- R6Class(
 
 # Method ModelTwoStationMetabDo$run ####
 
-TwoStationMetabDO$set(
+TwoStationMetabDo$set(
    which = "public",
    name = "run",
    value = function() 

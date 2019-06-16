@@ -12,7 +12,7 @@ NULL
 #' 
 TwoStationMetabDoDic <- R6Class(
    classname = "TwoStationMetabDoDic",
-   inherit =TwoStationMetabDO,
+   inherit =TwoStationMetabDo,
    public = list(
       upstreamDIC = NULL, 
       upstreampCO2 = NULL,

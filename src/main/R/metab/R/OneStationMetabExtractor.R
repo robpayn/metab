@@ -12,11 +12,13 @@ NULL
 #'   
 OneStationMetabExtractor <- R6Class(
    classname = "OneStationMetabExtractor",
+   inherit = SignalSummarizer,
    public = list(
       table = NULL,
       index = NULL,
       resultFile = NULL,
       summaryFile = NULL,
+      path = NULL,
       initialize = function
          (
             rows,
@@ -32,35 +34,55 @@ OneStationMetabExtractor <- R6Class(
             self$index <- 1;
             self$resultFile <- resultFile;
             self$summaryFile <- summaryFile;
-         },
-      extract = function
-         (
-            signal,
-            outputPath
-         )
-         {
-            load(file = sprintf(
-               fmt = "%s/%s.RData",
-               outputPath,
-               self$resultFile
-            ));
-            self$table$GPP[self$index] <- results$objFunc$model$dailyGPP;
-            self$table$ER[self$index] <- results$objFunc$model$dailyER;
-            self$table$k600[self$index] <- results$objFunc$model$k600;
-            self$index <- self$index + 1;
-         },
-      write = function
-         (path)
-         {
-            table <- self$table;
-            save(
-               table, 
-               file = sprintf(
-                  fmt = "%s/%s.RData",
-                  path,
-                  self$summaryFile
-                  )
-            );
          }
       )
+);
+
+OneStationMetabExtractor$set(
+   which = "public",
+   name = "open",
+   value = function(path) 
+      {
+         self$path = path;
+      }
+);
+
+OneStationMetabExtractor$set(
+   which = "public",
+   name = "summarize",
+   value = function
+      (
+         signal,
+         outputPath,
+         label,
+         timeBounds
+      )
+      {
+         load(file = sprintf(
+            fmt = "%s/%s.RData",
+            outputPath,
+            self$resultFile
+         ));
+         self$table$GPP[self$index] <- results$objFunc$model$dailyGPP;
+         self$table$ER[self$index] <- results$objFunc$model$dailyER;
+         self$table$k600[self$index] <- results$objFunc$model$k600;
+         self$index <- self$index + 1;
+      }
+);
+
+OneStationMetabExtractor$set(
+   which = "public",
+   name = "close",
+   value = function () 
+      {
+         table <- self$table;
+         save(
+            table, 
+            file = sprintf(
+               fmt = "%s/%s.RData",
+               self$path,
+               self$summaryFile
+               )
+      );
+   }
 );

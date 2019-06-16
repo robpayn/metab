@@ -29,11 +29,11 @@ TwoStationMetabPlotter <- R6Class(
    )
 );
 
-# Method OneStationMetabPlotter$plot ####
+# Method OneStationMetabPlotter$summarize ####
 
 TwoStationMetabPlotter$set(
    which = "public",
-   name = "plot",
+   name = "summarize",
    value = function
       (
          signalIn = NULL,

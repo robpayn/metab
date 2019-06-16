@@ -6,21 +6,20 @@
 #' @importFrom inferno Model
 NULL
 
-# Class ModelOneStationMetabDoDic (R6) ####
+# Class OneStationMetabDoDic (R6) ####
 
 #' @export
 #' 
 #' @title
-#'    Class ModelOneStationMetabDoDic (R6)
+#'    Class OneStationMetabDoDic (R6)
 #' 
 #' @description
 #'    A model for predicting dissolved oxygen and carbon dioxide concentrations in
 #'    a stream using the one station method.
+#'    Parameters desribed here are for the R6 constructor method ($new).
 #' 
-#' @usage 
-#'    ModelOneStationMetabDoDic$new(...)
 #' @param ... 
-#'    Arguments passed to constructor \code{ModelOneStationMetabDoDic$new(...)} will be 
+#'    Arguments passed to constructor \code{OneStationMetabDoDic$new(...)} will be 
 #'    passed generically to the constructor for the superclass \code{ModelOneStationMetabDo}. 
 #'    See documentation for the class \code{\link{ModelOneStationMetabDo}} for a description
 #'    of these arguments.
@@ -40,11 +39,11 @@ NULL
 #'    Photosynthetic quotient
 #'    (single value numerical vector, default value is 1.22)
 #' @return 
-#'    The object of class \code{ModelOneStationMetabDoDic} 
+#'    The object of class \code{OneStationMetabDoDic} 
 #'    instantiated by the constructor
-ModelOneStationMetabDoDic <- R6Class(
-   classname = "ModelOneStationMetabDoDIC",
-   inherit = ModelOneStationMetabDo,
+OneStationMetabDoDic <- R6Class(
+   classname = "OneStationMetabDoDic",
+   inherit = OneStationMetabDo,
    public = list(
       initialDIC = NULL, 
       pCO2air = NULL, 
@@ -89,7 +88,7 @@ ModelOneStationMetabDoDic <- R6Class(
    )
 );
 
-#' @name ModelOneStationMetabDoDic_run
+#' @name OneStationMetabDoDic_run
 #' 
 #' @title 
 #'    Runs the model (R6 method)
@@ -122,7 +121,7 @@ ModelOneStationMetabDoDic <- R6Class(
 #'       micromoles per liter \cr
 #'    pCO2: partial pressure of co2 in water in microatmosphere \cr
 #'    dic: DIC concentration in water in moles per liter 
-ModelOneStationMetabDoDic$set(
+OneStationMetabDoDic$set(
    which = "public",
    name = "run",
    value = function()

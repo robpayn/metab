@@ -109,7 +109,7 @@ TwoStationMetabMLE$set(
             );
          
          if(!self$usepCO2) {
-            model <- TwoStationMetabDO$new(
+            model <- TwoStationMetabDo$new(
                dailyGPP = self$initParams[1],
                dailyER = self$initParams[2],
                k600 = self$initParams[3],

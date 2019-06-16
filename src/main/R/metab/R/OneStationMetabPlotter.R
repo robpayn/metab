@@ -20,25 +20,28 @@ OneStationMetabPlotter <- R6Class(
       timeTicks = NULL,
       resultFile = NULL,
       results = NULL,
+      plotDIC = NULL,
       initialize = function
          (
             ..., 
             timeTicks, 
-            resultFile = "results"
+            resultFile = "results",
+            plotDIC = FALSE
          )
          {
             super$initialize(...);
             self$timeTicks <- timeTicks;
             self$resultFile <- resultFile;
+            self$plotDIC <- plotDIC;
          }
       )
 );
 
-# Method OneStationMetabPlotter$plot ####
+# Method OneStationMetabPlotter$summarize ####
 
 OneStationMetabPlotter$set(
    which = "public",
-   name = "plot",
+   name = "summarize",
    value = function
       (
          signal = NULL,
@@ -53,7 +56,7 @@ OneStationMetabPlotter$set(
          } else {
             if (is.null(self$signal)) {
                stop(paste(
-                  "No signal provided for the OneStationMetabPlotter$plot method."
+                  "No signal provided for the OneStationMetabPlotter$summarize method."
                ));
             }
          }
@@ -81,6 +84,13 @@ OneStationMetabPlotter$set(
                col = "green3",
                lwd = 1
             ),
+            dicObs = list(
+               name = "DIC Obs",
+               lty = NA,
+               pch = 1,
+               col = "green3",
+               lwd = 1
+            ),
             doPred = list(
                name = "DO Pred",
                lty = "solid",
@@ -90,6 +100,13 @@ OneStationMetabPlotter$set(
                ),
             pCO2Pred = list(
                name = "pCO2 Pred",
+               lty = "solid",
+               pch = NA,
+               col = "green3",
+               lwd = 2
+            ),
+            dicPred = list(
+               name = "DIC Pred",
                lty = "solid",
                pch = NA,
                col = "green3",
@@ -202,44 +219,91 @@ OneStationMetabPlotter$set(
             );
          }
          
-         # Plot pCO2
-         
-         # Reset the axes scaling for pCO2 plot
+         # Reset the axes scaling for inorganic carbon
          par(new = TRUE);
-         # Plot the pCO2 observations
-         self$signal$plot(
-            variableName = "pCO2",
-            xaxt = "n",
-            yaxt = "n",
-            ylab = "",
-            pch = ld["pCO2Obs", "pch"],
-            col = ld["pCO2Obs", "col"],
-            lwd = ld["pCO2Obs", "lwd"]
-         );
-         axis(
-            side = 4
-         );
-         mtext(
-            text = sprintf(
-               "%s (%s)",
-               "pCO2",
-               self$signal$dataFrame$metaColumns["pCO2",]$units
-            ),
-            side = 4,
-            line = 2.5,
-            cex = 0.7,
-            col = ld["pCO2Obs", "col"]
-         );
-         if (plotResults) {
-            if (!is.null(self$results$objFunc$model$output$pCO2)) {
+
+         if (!self$plotDIC) {
+            
+            # Plot the pCO2 observations
+            self$signal$plot(
+               variableName = "pCO2",
+               xaxt = "n",
+               yaxt = "n",
+               ylab = "",
+               pch = ld["pCO2Obs", "pch"],
+               col = ld["pCO2Obs", "col"],
+               lwd = ld["pCO2Obs", "lwd"]
+            );
+            axis(
+               side = 4
+            );
+            mtext(
+               text = sprintf(
+                  "%s (%s)",
+                  "pCO2",
+                  self$signal$dataFrame$metaColumns["pCO2",]$units
+                  ),
+               side = 4,
+               line = 2.5,
+               cex = 0.7,
+               col = ld["pCO2Obs", "col"]
+            );
+            if (plotResults) {
+               if (!is.null(self$results$objFunc$model$output$pCO2)) {
+                  lines(
+                     x = self$results$objFunc$model$output$time,
+                     y = self$results$objFunc$model$output$pCO2,
+                     lty = ld["pCO2Pred", "lty"],
+                     col = ld["pCO2Pred", "col"],
+                     lwd = ld["pCO2Pred", "lwd"]
+                  );
+               }
+            }
+            
+         } else {
+            
+            # Plot the DIC observations
+            ymin <- min(self$signal$getVariable(variableName = "dic"), na.rm = TRUE);
+            if(plotResults) {
+               ymin <- min(ymin, self$results$objFunc$model$output$dic, na.rm = TRUE);
+            }
+            ymax <- ymin + (ylim[2] - ylim[1]);
+            ylim <- c(ymin, ymax);
+            
+            self$signal$plot(
+               variableName = "dic",
+               xaxt = "n",
+               ylim = ylim,
+               yaxt = "n",
+               ylab = "",
+               pch = ld["dicObs", "pch"],
+               col = ld["dicObs", "col"],
+               lwd = ld["dicObs", "lwd"]
+            );
+            axis(
+               side = 4
+            );
+            mtext(
+               text = sprintf(
+                  "%s (%s)",
+                  "dic",
+                  self$signal$dataFrame$metaColumns["dic",]$units
+               ),
+               side = 4,
+               line = 2.5,
+               cex = 0.7,
+               col = ld["dicObs", "col"]
+            );
+            if (plotResults & !is.null(self$results$objFunc$model$output$pCO2)) {
                lines(
                   x = self$results$objFunc$model$output$time,
-                  y = self$results$objFunc$model$output$pCO2,
-                  lty = ld["pCO2Pred", "lty"],
-                  col = ld["pCO2Pred", "col"],
-                  lwd = ld["pCO2Pred", "lwd"]
+                  y = self$results$objFunc$model$output$dic,
+                  lty = ld["dicPred", "lty"],
+                  col = ld["dicPred", "col"],
+                  lwd = ld["dicPred", "lwd"]
                );
-            }
+            }         
+            
          }
 
          # Reset the axes scaling for PAR reference

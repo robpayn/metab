@@ -121,7 +121,7 @@ OneStationMetabMLE$set(
          }
          
          if(!self$usepCO2) {
-            model <- ModelOneStationMetabDo$new(
+            model <- OneStationMetabDo$new(
                dailyGPP = self$initParams[1],
                dailyER = self$initParams[2],
                k600 = self$initParams[3],
@@ -135,7 +135,7 @@ OneStationMetabMLE$set(
          } else {
             pCO2obs <- self$signal$getVariable("pCO2");
             pCO2obs <- pCO2obs[is.finite(pCO2obs)];
-            model <- ModelOneStationMetabDoDic$new(
+            model <- OneStationMetabDoDic$new(
                dailyGPP = self$initParams[1],
                dailyER = self$initParams[2],
                k600 = self$initParams[3],
