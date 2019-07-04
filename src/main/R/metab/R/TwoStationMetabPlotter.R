@@ -15,19 +15,140 @@ TwoStationMetabPlotter <- R6Class(
       timeTicks = NULL,
       resultFile = NULL,
       results = NULL,
+      subTitle = NULL,
       initialize = function
+         (
+            ..., 
+            timeTicks, 
+            resultFile = "results",
+            subTitle = ""
+         )
+         {
+            super$initialize(...);
+            self$timeTicks <- timeTicks;
+            self$resultFile <- resultFile;
+            self$subTitle <- subTitle;
+         }
+      )
+);
+
+
+# Method TwoStationMetabPlotter$open ####
+
+TwoStationMetabPlotter$set(
+   which = "public",
+   name = "open",
+   value = function
       (
-         ..., 
-         timeTicks, 
-         resultFile = "results"
+         path
       )
       {
-         super$initialize(...);
-         self$timeTicks <- timeTicks;
-         self$resultFile <- resultFile;
+         super$open(path);
+         
+         plot(
+            x = NULL,
+            xaxt = 'n',
+            xlim = 0:1, 
+            xlab = '', 
+            yaxt = 'n',
+            ylim = 0:1,
+            ylab = '',
+            bty = 'n',
+            main = "Two Station Metabolism Analysis Summary"
+         );
+         text(
+            x = 0.5,
+            y = 0.8,
+            labels = "Left panel legend:",
+            font = 2
+            );
+         legend(
+            x = "center",
+            bty = 'n',
+            legend = c(
+               '[DO] upstream observed', 
+               '[DO] downstream observed', 
+               '[DO] downstream modeled (if available)', 
+               'PAR upstream',
+               'PAR downstream'
+               ),
+            lty = c(
+               NA,
+               NA,
+               'solid',
+               NA,
+               NA
+               ),
+            lwd = 2,
+            pch = c(
+               46,
+               176,
+               NA,
+               46,
+               176
+               ),
+            col = c(
+               'black',
+               'black',
+               'black',
+               'red',
+               'red'
+               )
+         );
+         
+         plot(
+            x = NULL,
+            xaxt = 'n',
+            xlim = 0:1, 
+            xlab = '', 
+            yaxt = 'n',
+            ylim = 0:1,
+            ylab = '',
+            bty = 'n',
+            main = self$subTitle
+         );
+         text(
+            x = 0.5,
+            y = 0.8,
+            labels = "Right panel legend:",
+            font = 2
+            )
+         legend(
+            x = "center", 
+            bty = 'n',
+            legend = c(
+               'pCO2 upstream observed',
+               'pCO2 downstream observed',
+               'pCO2 downstream modeled (if available)', 
+               'Temperature upstream',
+               'Temperature downstream'
+               ),
+            lty = c(
+               NA,
+               NA,
+               'solid',
+               NA,
+               NA
+               ),
+            lwd = 2,
+            pch = c(
+               46,
+               176,
+               NA,
+               46,
+               176
+               ),
+            col = c(
+               'black',
+               'black',
+               'black',
+               'red',
+               'red'
+               )
+         );
       }
-   )
 );
+
 
 # Method OneStationMetabPlotter$summarize ####
 

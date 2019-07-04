@@ -2,6 +2,7 @@
 
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
+#
 #' @importFrom R6 R6Class
 #' @importFrom inferno Model
 NULL
@@ -15,37 +16,42 @@ NULL
 #'
 #' @description
 #'    A model for predicting dissolved oxygen concentrations in
-#'    a stream using the one station method.
+#'    a stream using the one-station method.
 #'    Parameters are for the R6 constructor method ($new).
 #' 
 #' @param dailyGPP 
-#'    daily average GPP influence on oxygen 
-#'    in grams per cubic meter per day 
-#'    (numerical vector with single value)
+#'    Daily average influence of gross primary production on oxygen concentration.
+#'    Units depend on the unit conversion factor for DO saturation.
+#'    Default value of the unit conversion factor results in
+#'    units of micomolarity per day.
 #' @param dailyER 
-#'    daily average ER influence on oxygen
-#'    in grams per cubic meter per day 
-#'    (numerical vector with single value)
+#'    Daily average influence of ecosystem respiration on oxygen.
+#'    Units depend on the unit conversion factor for DO saturation.
+#'    Default value of the unit conversion factor results in
+#'    units of micomolarity per day.
 #' @param k600 
-#'    gas exchange rate per day for air-water interface
-#'    (numerical vector with single value)
+#'    Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
+#'    depending on saturation deficit. Units are per day.
 #' @param airPressure 
-#'    air pressure in mm of Hg
-#'    (numerical vector with single value)
+#'    Barometric pressure.
+#'    Units must be consistent with the units of the optional standard air pressure
+#'    argument.
+#'    Default value for standard air pressure results in units of mm Hg.
 #' @param initialDO 
-#'    initial DO concentration in grams per cubic meter
-#'    (numerical vector, only first value will be used)
+#'    Initial DO concentration at the beginning of the evaluation period.
+#'    Units depend on the unit conversion factor for DO saturation.
+#'    Default value of the unit conversion factor results in
+#'    units of micomolarity per day.
 #' @param time 
-#'    times for temperature and par data
+#'    Time vector for data
 #'    (POSIXct vector or character vector in a standard text format
 #'    to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")
 #' @param temp 
-#'    water temperature data in degrees Celsius
-#'    (numerical vector)
+#'    Water temperature vector in degrees Celsius
 #' @param par 
-#'    photosynthetically active radiation data. Units are arbitrary,
-#'    but must be consistent with PAR total if it is specified
-#'    (numerical vector)
+#'    Photosynthetically active radiation vector. 
+#'    Units are arbitrary, but must be consistent with total PAR total if the
+#'    optional argument for total PAR is specified.
 #' @param timeStepCount 
 #'    total number of time steps to which data should be
 #'    interpolated, used to reduce the number of time steps calculated for
@@ -75,17 +81,21 @@ NULL
 #'    Defaults to a new instance of \code{\link{DoSatCalculator}} based on
 #'    the standard air pressure and saturation concentration unit conversion
 #'    arguments.
-#' @param densityWaterFunc
-#'    Option to change the function used for calculating the density of 
-#'    water from temperature. Defaults to \code{\link{densityWater}}
 #' @param kSchmidtFunc
 #'    Option to change the function used for calculating the gas exchange
 #'    rate from the gas exchange parameter normalized to a Schmidt number.
 #'    Defaults to \code{\link{kSchmidt}}
-#' @return 
-#'    The object of class \code{OneStationMetabDo} 
-#'    instantiated by the constructor
 #'    
+#' @return 
+#'    Reference to a new OneStationMetabDo object configured with the provided arguments.
+#'    
+#' @section Extends \code{\link{Model}}:
+#'   \code{$run}
+#'   \itemize{
+#'     \item see \code{\link{Model_run}}
+#'     \item see \code{\link{OneStationMetabDo_run}}
+#'   }
+#'   
 OneStationMetabDo <- R6Class(
    classname = "OneStationMetabDo",
    inherit = Model,
@@ -189,29 +199,32 @@ OneStationMetabDo <- R6Class(
       )
 );
 
+# Method OneStationMetabDo$run ####
+
 #' @name OneStationMetabDo_run
-#' 
+#'
 #' @title
-#'    Runs the model (R6 method)
-#' 
-#' @description 
-#'    Runs the model predicting the change in concentration of oxygen
-#'    at a location in a stream (one-station approach)
-#' 
+#'   Runs a one-station metabolism model
+#'
 #' @return 
 #'    Data frame with incremental and final results of the simulation,
-#'    with columns \cr
-#'    time: POSIXct simulation time \cr
-#'    do: dissolved oxygen concentration in grams per cubic meter \cr
-#'    doSat: Saturated dissolved oxygen concentration in grams per cubic meter \cr
-#'    doProduction: increase in DO concentration during the time step in 
-#'       grams per cubic meter \cr
-#'    doConsumption: decrease in DO concentration during the time step in
-#'       grams per cubic meter \cr
-#'    k: gas exchange rate per day for oxygen \cr
-#'    temp: water temperature in degrees Celsius \cr
-#'    dt: length of time step
-#'    
+#'    with columns:
+#'    \itemize{
+#'      \item time: POSIXct simulation time
+#'      \item do: dissolved oxygen concentration
+#'      \item doSat: Saturated dissolved oxygen concentration
+#'      \item doProduction: increase in DO concentration during the time step
+#'      \item doConsumption: decrease in DO concentration during the time step
+#'      \item k: DO gas exchange rate
+#'      \item temp: water temperature in degrees Celsius
+#'      \item dt: length of time step
+#'    }
+#' @section Method of class:
+#'   \code{\link{OneStationMetabDo}}
+#'
+#' @section Implementation of abstract method:
+#'   \code{\link{Model_run}} - See abstract method for documentation
+#'   
 OneStationMetabDo$set(
    which = "public",
    name = "run",

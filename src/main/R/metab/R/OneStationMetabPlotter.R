@@ -21,21 +21,134 @@ OneStationMetabPlotter <- R6Class(
       resultFile = NULL,
       results = NULL,
       plotDIC = NULL,
+      subTitle = NULL,
       initialize = function
          (
             ..., 
             timeTicks, 
             resultFile = "results",
-            plotDIC = FALSE
+            plotDIC = FALSE,
+            subTitle = ""
          )
          {
             super$initialize(...);
             self$timeTicks <- timeTicks;
             self$resultFile <- resultFile;
             self$plotDIC <- plotDIC;
+            self$subTitle <- subTitle;
          }
       )
 );
+
+
+# Method OneStationMetabPlotter$open ####
+
+OneStationMetabPlotter$set(
+   which = "public",
+   name = "open",
+   value = function
+      (
+         path
+      )
+      {
+         super$open(path);
+         
+         plot(
+            x = NULL,
+            xaxt = 'n',
+            xlim = 0:1, 
+            xlab = '', 
+            yaxt = 'n',
+            ylim = 0:1,
+            ylab = '',
+            bty = 'n',
+            main = "One Station Metabolism Analysis Summary"
+         );
+         text(
+            x = 0.5,
+            y = 0.9,
+            labels = "Left panel legend:",
+            font = 2
+            );
+         legend(
+            x = "center",
+            bty = 'n',
+            legend = c(
+               '[DO] observed', 
+               '[DO] modeled (if available)', 
+               'pCO2 observed',
+               'pCO2 modeled (if available)', 
+               'Saturated [DO]',
+               'PAR'
+               ),
+            lty = c(
+               NA,
+               'solid',
+               NA,
+               'solid',
+               'dotted',
+               'dashed'
+               ),
+            lwd = 2,
+            pch = c(
+               1,
+               NA,
+               1,
+               NA,
+               NA,
+               NA
+               ),
+            col = c(
+               'black',
+               'black',
+               'green3',
+               'green3',
+               'black',
+               'red'
+               )
+         );
+         
+         plot(
+            x = NULL,
+            xaxt = 'n',
+            xlim = 0:1, 
+            xlab = '', 
+            yaxt = 'n',
+            ylim = 0:1,
+            ylab = '',
+            bty = 'n',
+            main = self$subTitle
+         );
+         text(
+            x = 0.5,
+            y = 0.7,
+            labels = "Right panel legend:",
+            font = 2
+            )
+         legend(
+            x = "center", 
+            bty = 'n',
+            legend = c(
+               'Temperature',
+               'PAR'
+               ),
+            lty = c(
+               NA,
+               'dashed'
+               ),
+            lwd = 2,
+            pch = c(
+               1,
+               NA
+               ),
+            col = c(
+               'black',
+               'red'
+               )
+         );
+      }
+);
+
 
 # Method OneStationMetabPlotter$summarize ####
 
