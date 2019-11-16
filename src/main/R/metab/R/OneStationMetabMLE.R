@@ -3,9 +3,6 @@
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
 #' @importFrom R6 R6Class
-#' @importFrom disco SignalDerivation
-#' @importFrom inferno LogLikelihood
-#' @importFrom inferno Simulator
 NULL
 
 #' @export
@@ -27,7 +24,7 @@ NULL
 #'   }
 OneStationMetabMLE <- R6Class(
    classname = "OneStationMetabMLE",
-   inherit = SignalDerivation,
+   inherit = disco::SignalDerivation,
    public = list(
       initParams = NULL,
       staticAirPressure = NULL,
@@ -166,8 +163,8 @@ OneStationMetabMLE$set(
          } else {
             stop("Cannot perform MLE without at least one observation variable.");
          }
-         objFunc <- LogLikelihood$new(
-            simulator = Simulator$new(
+         objFunc <- inferno::LogLikelihood$new(
+            simulator = inferno::Simulator$new(
                model = model,
                parameterTranslator = ParameterTranslatorMetab$new(model),
                predictionExtractor = predictionExtractor

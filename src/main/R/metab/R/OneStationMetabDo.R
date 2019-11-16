@@ -4,7 +4,6 @@
 # Used for robust namespace management in R packages
 #
 #' @importFrom R6 R6Class
-#' @importFrom inferno Model
 NULL
 
 # Class OneStationMetabDo (R6) ####
@@ -98,7 +97,6 @@ NULL
 #'   
 OneStationMetabDo <- R6Class(
    classname = "OneStationMetabDo",
-   inherit = Model,
    public = list(
       output = NULL,
       dailyGPP = NULL, 

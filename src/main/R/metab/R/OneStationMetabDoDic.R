@@ -3,7 +3,6 @@
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
 #' @importFrom R6 R6Class
-#' @importFrom inferno Model
 NULL
 
 # Class OneStationMetabDoDic (R6) ####
@@ -20,12 +19,17 @@ NULL
 #' 
 #' @param ... 
 #'    Arguments passed to constructor \code{OneStationMetabDoDic$new(...)} will be 
-#'    passed generically to the constructor for the superclass \code{ModelOneStationMetabDo}. 
-#'    See documentation for the class \code{\link{ModelOneStationMetabDo}} for a description
+#'    passed generically to the constructor for the superclass \code{OneStationMetabDo}. 
+#'    See documentation for the class \code{\link{OneStationMetabDo}} for a description
 #'    of these arguments.
 #' @param initialDIC 
 #'    initial DIC concentration in micromoles per liter
 #'    (numerical vector, only first value will be used)
+#'    Either initialDIC or initialpCO2 must be specified, but not both.
+#' @param initialpCO2 
+#'    initial pCO2 concentration in microatmospheres
+#'    (numerical vector, only first value will be used)
+#'    Either initialDIC or initialpCO2 must be specified, but not both.
 #' @param pCO2air 
 #'    partial pressure of CO2 in the air in microatmospheres
 #'    (numerical vector)
@@ -66,6 +70,12 @@ OneStationMetabDoDic <- R6Class(
             self$alkalinity <- alkalinity;
             self$carbonateEq <- CarbonateEq$new(tempC = self$temp[1]);
             if(!is.null(initialDIC)) {
+               if(!is.null(initialpCO2)) {
+                  stop(paste(
+                     "Ambiguous arguments. Cannot specify both initialDIC",
+                     "and initialpCO2."
+                  ));
+               }
                self$initialDIC <- initialDIC;
             } else {
                if(is.null(initialpCO2)) {
@@ -87,6 +97,8 @@ OneStationMetabDoDic <- R6Class(
          }
    )
 );
+
+# Method OneStationMetabDoDic$run ####
 
 #' @name OneStationMetabDoDic_run
 #' 

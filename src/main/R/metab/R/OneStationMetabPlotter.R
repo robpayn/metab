@@ -3,7 +3,6 @@
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
 #' @importFrom R6 R6Class
-#' @importFrom disco SignalPlotter
 NULL
 
 # Class OneStationMetabPlotter (R6) ####
@@ -15,7 +14,7 @@ NULL
 #'   
 OneStationMetabPlotter <- R6Class(
    classname = "OneStationMetabPlotter",
-   inherit = SignalPlotter,
+   inherit = disco::SignalPlotter,
    public = list(
       timeTicks = NULL,
       resultFile = NULL,

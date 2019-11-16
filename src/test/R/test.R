@@ -35,7 +35,7 @@ pCO2air <- 400;
 alkalinity <- 2410;
 
 # Define the model object to be optimized.
-model <- ModelOneStationMetabDoDic$new(
+model <- OneStationMetabDoDic$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
