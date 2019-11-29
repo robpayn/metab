@@ -22,30 +22,25 @@ attributes(doData)$names[7] <- "GMT";
 par <- doData$LUX * 0.0185;
 
 # Set known simluated stream environment
-knownGPP <- 5;
-knownER <- -5;
+
+knownGPP <- 150;
+knownER <- -150;
 knownk600 <- 12;
 
-knownsdDO <- 0.05;
-knownsdpCO2 <- 8.75;
+knownsdDO <- 2;
 
-airPressure <- 609;
-initialDIC <- 2404.389;
-pCO2air <- 400; 
-alkalinity <- 2410;
 
 # Define the model object to be optimized.
-model <- ModelOneStationMetabDo$new(
+model <- OneStationMetabDo$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
-   airPressure = airPressure,
+   airPressure = 609,
    time = doData$time,
    initialDO = doData$dissolvedOxygen,
-   temp = doData$temp,
-   par = par,
-   doSatUnitConv = 0.032
-   );
+   temp = 225,
+   par = par
+);
 
 # DEBUG
 # library(R6);
@@ -73,23 +68,23 @@ model <- ModelOneStationMetabDo$new(
 #    known model.
 objFunc <- BayesLogLikelihood$new(
    paramDists = list(
-      GPP = RVUniform$new(min = 0, max = 1000),
-      ER = RVUniform$new(min = -1000, max = 0),
+      GPP = RVUniform$new(min = 0, max = 10000),
+      ER = RVUniform$new(min = -10000, max = 0),
       k600 = RVUniform$new(min = 0, max = 100)
-      ),
+   ),
    logLikelihood = LogLikelihood$new(
       simulator = Simulator$new(
          model = model,
          parameterTranslator = ParameterTranslatorMetab$new(model),
          predictionExtractor = PredictionExtractorMetabDo$new(model)
-         ),
+      ),
       observationGenerator = ObservationGeneratorNormalErr$new(
          mean = list(do = 0), 
          sd = list(do =knownsdDO)
-         ),
+      ),
       sd = knownsdDO
-      )
-   );
+   )
+);
 
 # Create a Bayesian Adaptive Metropolis Markov Chain
 #    Monte Carlo sampler, and exectue an optimization.
@@ -101,20 +96,20 @@ sampler <- AdaptiveMCMCSampler$new(
       GPP = knownGPP * offsetFactor,
       ER = knownER * offsetFactor,
       k600 = knownk600 * offsetFactor
-      ),
+   ),
    burninProposalDist = RVMultivariateNormal$new(
       covariance = diag((c(
          GPP = knownGPP,
          ER = -knownER,
          k600 = knownk600
-         ) / burninSDAdjust)^2),
+      ) / burninSDAdjust)^2),
       adjustCovarianceFactor = 0.5
-      ),
+   ),
    burninRealizations = 200,
    staticRealizations = 200,
    adaptiveRealizations = 2000,
    statsLoggers = list(bayes = StatsLoggerBayes$new())
-   );
+);
 sampler$optimize();
 
-sampler$plotSummary(device = "windows", file = "./output/summary.pdf");
+sampler$plotSummary(device = "windows", file = "./output/summary.pdf")

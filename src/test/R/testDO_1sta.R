@@ -4,6 +4,7 @@ library(metab);
 
 # Read the data file that is providing sample PAR
 # and temperature data
+
 doData <- read.table(
    file = "./8-4-17_big_sky_doData.csv",
    header = FALSE,
@@ -22,48 +23,45 @@ attributes(doData)$names[7] <- "GMT";
 par <- doData$LUX * 0.0185;
 
 # Set known simluated stream environment
-knownGPP <- 2;
-knownER <- -5;
+
+knownGPP <- 150;
+knownER <- -150;
 knownk600 <- 12;
 
-knownsdDO <- 0.05;
-knownsdpCO2 <- 8.75;
-
-airPressure <- 609;
-initialDIC <- 2404.389;
-pCO2air <- 400; 
-alkalinity <- 2410;
+knownsdDO <- 2;
 
 # Define the model object to be optimized.
-model <- ModelOneStationMetabDo$new(
+
+model <- OneStationMetabDo$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
-   airPressure = airPressure,
+   airPressure = 609,
    time = doData$time,
-   initialDO = doData$dissolvedOxygen,
+   initialDO = 225,
    temp = doData$temp,
-   par = par,
-   doSatUnitConv = 0.032
-   );
+   par = par
+);
 
 # Define the objective function to use in the optimization
+
 objFunc <- LogLikelihood$new(
    simulator = Simulator$new(
       model = model,
       parameterTranslator = ParameterTranslatorMetab$new(model),
       predictionExtractor = PredictionExtractorMetabDo$new(model)
-      ),
+   ),
    observationGenerator = ObservationGeneratorNormalErr$new(
       mean = list(do = 0), 
       sd = list(do =knownsdDO)
-      ),
+   ),
    sd = knownsdDO,
    negate = TRUE
-   );
+);
 
 # Infer metabolic parameter values by minimizing the value returned 
 # by the objective function.
+
 optimr <- optim(
    par = c(
       knownGPP,
@@ -71,37 +69,15 @@ optimr <- optim(
       knownk600
       ),
    fn = objFunc$propose
-   );
+);
 
-# Run the model with the best fit parameters
-objFunc$propose(optimr$par);
+# Run the model with the best-fit parameter values
 
-windows(width = 10, height = 10);
-par(
-   mfrow = c(1, 1), 
-   mar = c(2.5, 4.5, 1, 2),
-   oma = c(2, 0, 0, 0)
-);
-plot(
-   x = model$output$time, 
-   y = objFunc$synthPrediction$do, 
-   type = "l",
-   ylab = expression(paste(
-      "[DO] (g ", m^-3, ")"
-   ))
-);
-points(
-   x = model$output$time, 
-   y = objFunc$observation$do
-   );
-lines(
-   x = model$output$time,
-   y = model$output$do,
-   col = "red",
-   lty = "dashed"
-   );
-mtext(
-   text = "Time",
-   side = 1,
-   outer = TRUE
-);
+objFunc$propose(params = optimr$par);
+
+# Plot the results
+
+windows(width = 10, height = 8);
+model$plot(
+   obsDO = objFunc$observation$do
+)

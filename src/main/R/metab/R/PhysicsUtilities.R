@@ -88,10 +88,6 @@ kSchmidt <- function(temp, k600)
 #' 
 #' @usage 
 #'    DoSatCalculator$new(<arguments>)
-#' @param unitConvFactor
-#'    A unit conversion factor that will be multiplied by
-#'    the base units of micromoles per liter to provide a
-#'    concentration
 #' @param densityWaterFunc
 #'    The function used to estimate the density of water
 #'    from temperature.  Defaults to densityWater provided as
@@ -114,14 +110,11 @@ DoSatCalculator <- R6Class(
    public = list(
       densityWaterFunc = NULL,
       stdAirPressure = NULL,
-      unitConvFactor = NULL,
       initialize = function(
-            unitConvFactor,
             densityWaterFunc = densityWater,
             stdAirPressure = 760
          )
          {
-            self$unitConvFactor <- unitConvFactor;
             self$densityWaterFunc <- densityWaterFunc;
             self$stdAirPressure <- stdAirPressure;
          }
@@ -163,8 +156,7 @@ DoSatCalculator$set(
                (273.15 + temp)
          );
          return(
-            self$unitConvFactor *
-               (airPressure / self$stdAirPressure) * 
+            (airPressure / self$stdAirPressure) * 
                self$densityWaterFunc(temp) *
                exp(
                   5.80871 +
@@ -369,4 +361,4 @@ SolarRadiation$set(
                cos(zenithAngle)
          );
       }
-);
+)

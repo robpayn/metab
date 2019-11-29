@@ -45,6 +45,15 @@ NULL
 #' @return 
 #'    The object of class \code{OneStationMetabDoDic} 
 #'    instantiated by the constructor
+#'    
+#' @section Extends \code{\link{OneStationMetabDo}}:
+#'   Overrides method \code{$run}
+#'   \itemize{
+#'     \item see \code{\link{Model_run}}
+#'     \item see \code{\link{OneStationMetabDo_run}}
+#'     \item see \code{\link{OneStationMetabDoDic_run}}
+#'   }
+#'   
 OneStationMetabDoDic <- R6Class(
    classname = "OneStationMetabDoDic",
    inherit = OneStationMetabDo,
@@ -112,27 +121,36 @@ OneStationMetabDoDic <- R6Class(
 #' @return 
 #'    Data frame with incremental and final results of the simulation,
 #'    with columns \cr
-#'    time: POSIXct simulation time \cr
-#'    do: dissolved oxygen concentration in grams per cubic meter \cr
-#'    doSat: Saturated dissolved oxygen concentration in grams per cubic meter \cr
-#'    doProduction: increase in DO concentration during the time step in 
-#'       grams per cubic meter \cr
-#'    doConsumption: decrease in DO concentration during the time step in
-#'       grams per cubic meter \cr
-#'    k: gas exchange rate per day for oxygen \cr
-#'    temp: water temperature in degrees Celsius \cr
-#'    dt: length of time step \cr
-#'    co2Production: increase in co2 concentration during the time step in
-#'       micromoles per liter \cr
-#'    co2Consumption: decrease in co2 concentration during the time step in
-#'       micromoles per liter \cr
-#'    kH: Henry's constant during the time step in micromoles per liter per 
-#'       microatmospheres \cr
-#'    co2Sat: saturation concentration for co2 in micromoles per liter \cr
-#'    fGas: change in co2 concentration due to air-water exchange in
-#'       micromoles per liter \cr
-#'    pCO2: partial pressure of co2 in water in microatmosphere \cr
-#'    dic: DIC concentration in water in moles per liter 
+#'    \itemize{
+#'      \item time: POSIXct simulation time (tzone attribute will not be set)
+#'      \item do: dissolved oxygen concentration in micromolality
+#'      \item doSat: Saturated dissolved oxygen concentration in micromolality
+#'      \item doProduction: increase in DO concentration in micromolality during the time step
+#'      \item doConsumption: decrease in DO concentration in micromolality during the time step
+#'      \item k: DO gas exchange rate in per day
+#'      \item temp: water temperature in degrees Celsius
+#'      \item dt: length of time step in days
+#'      \item co2Production: increase in co2 concentration during the time step in
+#'            micromoles per liter
+#'      \item co2Consumption: decrease in co2 concentration during the time step in
+#'            micromoles per liter
+#'      \item kH: Henry's constant during the time step in micromoles per liter per 
+#'            microatmospheres
+#'      \item co2Sat: saturation concentration for co2 in micromoles per liter
+#'      \item fGas: change in co2 concentration due to air-water exchange in
+#'            micromoles per liter
+#'      \item pH: minus the log of the hydrogen ion concentration
+#'      \item pCO2: partial pressure of co2 in water in microatmosphere
+#'      \item dic: DIC concentration in water in moles per liter 
+#'    }
+#'    
+#' @section Method of class:
+#'   \code{\link{OneStationMetabDoDic}}
+#'
+#' @section Overrides method in super class:
+#'   \code{\link{Model_run}}
+#'   \code{\link{OneStationMetabDo_run}}
+#'   
 OneStationMetabDoDic$set(
    which = "public",
    name = "run",
@@ -164,10 +182,12 @@ OneStationMetabDoDic$set(
          
          # Set the initial DIC concentration, pCO2, and fgas
          self$output$dic[1] <- self$initialDIC[1];
-         self$output$pCO2[1] <- self$carbonateEq$optfCO2FromDICTotalAlk(
-               concDIC = self$initialDIC[1] * 1e-6, 
-               totalAlk = self$alkalinity[1] * 1e-6
-            )$fCO2;
+         dicOptim <- self$carbonateEq$optfCO2FromDICTotalAlk(
+            concDIC = self$initialDIC[1] * 1e-6, 
+            totalAlk = self$alkalinity[1] * 1e-6
+         );
+         self$output$pCO2[1] <- dicOptim$fCO2;
+         self$output$pH[1] <- dicOptim$pH;
          self$output$fGas[1] <- self$output$dt[1] * self$output$k[1] * 0.915 * 
             self$output$kH[1] * (self$pCO2air - self$output$pCO2[1]);
          
@@ -197,4 +217,4 @@ OneStationMetabDoDic$set(
          
          return(self$output);
       }
-);
+)

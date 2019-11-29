@@ -23,40 +23,36 @@ attributes(doData)$names[7] <- "GMT";
 par <- doData$LUX * 0.0185;
 
 # Set known simluated stream environment
-knownGPP <- 2;
-knownER <- -5;
+
+knownGPP <- 150;
+knownER <- -150;
 knownk600 <- 12;
 
-knownsdDO <- 0.05;
-knownsdpCO2 <- 8.75;
-
-airPressure <- 609;
-initialDIC <- 2404.389;
-pCO2air <- 400; 
-alkalinity <- 2410;
+knownsdDO <- 2;
 
 # Define the model object to be optimized.
-model <- ModelOneStationMetabDo$new(
+model <- OneStationMetabDo$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
-   airPressure = airPressure,
+   airPressure = 609,
    time = doData$time,
-   initialDO = doData$dissolvedOxygen,
+   initialDO = 225,
    temp = doData$temp,
-   par = par,
-   doSatUnitConv = 0.032
+   par = par
 );
 
 # Define the objective function to use in the optimization
 objFunc <- LogLikelihood$new(
-   model = model,
-   parameterTranslator = ParameterTranslatorMetab$new(model),
-   predictionExtractor = PredictionExtractorMetabDo$new(model),
+   simulator = Simulator$new(
+      model = model,
+      parameterTranslator = ParameterTranslatorMetab$new(model),
+      predictionExtractor = PredictionExtractorMetabDo$new(model)
+   ),
    observationGenerator = ObservationGeneratorNormalErr$new(
       mean = list(do = 0), 
       sd = list(do =knownsdDO)
-      ),
+   ),
    sd = knownsdDO,
    negate = TRUE
 );
@@ -99,8 +95,8 @@ ensemble <- parSapply(
       knownGPP,
       knownER,
       knownk600
-      )
-   );
+   )
+);
 stopCluster(cl = cluster);
 timerP <- Sys.time() - timerP;
 
@@ -136,4 +132,4 @@ mtext(
    text = "Time",
    side = 1,
    outer = TRUE
-);
+)
