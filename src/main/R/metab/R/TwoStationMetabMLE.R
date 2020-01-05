@@ -8,52 +8,128 @@ NULL
 #' @export
 #' 
 #' @title 
-#'   Basic MLE inference for One Station stream metabolism
+#'   R6 class defining an MLE inference using a two station metabolism model
+#' 
+#' @description 
+#'   Basic MLE inference for two station stream metabolism
 #'   
 TwoStationMetabMLE <- R6Class(
    classname = "TwoStationMetabMLE",
    inherit = disco::TransferFunctionDerivation,
    public = list(
+      
+      #' @field initParams
+      #'   The intial parameter values to use for the MLE algorithm
       initParams = NULL,
+      
+      #' @field staticAirPressure
+      #'   The air pressure.
       staticAirPressure = NULL,
+      
+      #' @field sdLikelihood
+      #'   The standard deviations used to calculate likelihood
       sdLikelihood = NULL,
+      
+      #' @field useDO
+      #'   Set to TRUE to use DO in the inference.
       useDO = NULL,
+      
+      #' @field usepCO2
+      #'   Set to TRUE to use pCO2 in the inference.
       usepCO2 = NULL,
+      
+      #' @field outputFile
+      #'   The name of the output file.
       outputFile = NULL,
+      
+      #' @field staticCO2Air
+      #'   The pCO2 in the air.
       staticCO2Air = NULL,
+      
+      #' @field staticAlkalinity
+      #'   The alkalinity.
       staticAlkalinity = NULL,
+      
+      # Method TwoStationMetabMLE$new ####
+      #
+      #' @description 
+      #'   Construct a new instance of the class
+      #'   
+      #' @param ...
+      #'   Arguments needed by the constructor of the super class
+      #' @param initParams
+      #'   The intial parameter values to use for the MLE algorithm
+      #' @param sdLikelihood
+      #'   The standard deviations used to calculate likelihood
+      #' @param useDO
+      #'   Set to TRUE to use DO in the inference.
+      #'   Defaults to TRUE.
+      #' @param usepCO2
+      #'   Set to TRUE to use pCO2 in the inference.
+      #'   Defaults to FALSE.
+      #' @param staticAirPressure
+      #'   The air pressure.
+      #'   Defaults to NULL, which will cause use of air pressure
+      #'   from the signal.
+      #' @param outputFile
+      #'   The name of the output file.
+      #'   Defaults to "results".
+      #' @param staticCO2Air
+      #'   The pCO2 in the air.
+      #'   Defaults to NULL, which will cause use of pCO2
+      #'   from the signal.
+      #' @param staticAlkalinity
+      #'   The alkalinity.
+      #'   Defaults to NULL, which will cause use of alkalinity
+      #'   from the signal.
+      #' 
       initialize = function
-         (
-            ...,
-            initParams,
-            sdLikelihood,
-            useDO = TRUE,
-            usepCO2 = FALSE,
-            staticAirPressure = NULL,
-            outputFile = "results",
-            staticCO2Air = NULL,
-            staticAlkalinity = NULL
-         )
-         {
-            super$initialize(...);
-            self$initParams <- initParams;
-            self$sdLikelihood <- sdLikelihood;
-            self$useDO <- useDO;
-            self$usepCO2 <- usepCO2;
-            self$staticAirPressure <- staticAirPressure;
-            self$outputFile <- outputFile;
-            self$staticCO2Air = staticCO2Air;
-            self$staticAlkalinity = staticAlkalinity;
-         }
-   )
-);
-
-# Method TwoStationMetabMLE$derive ####
-
-TwoStationMetabMLE$set(
-   which = "public",
-   name = "derive",
-   value = function
+      (
+         ...,
+         initParams,
+         sdLikelihood,
+         useDO = TRUE,
+         usepCO2 = FALSE,
+         staticAirPressure = NULL,
+         outputFile = "results",
+         staticCO2Air = NULL,
+         staticAlkalinity = NULL
+      )
+      {
+         super$initialize(...);
+         self$initParams <- initParams;
+         self$sdLikelihood <- sdLikelihood;
+         self$useDO <- useDO;
+         self$usepCO2 <- usepCO2;
+         self$staticAirPressure <- staticAirPressure;
+         self$outputFile <- outputFile;
+         self$staticCO2Air = staticCO2Air;
+         self$staticAlkalinity = staticAlkalinity;
+      },
+      
+      # Method TwoStationMetabMLE$derive ####
+      #
+      #' @description 
+      #'   Uses a two-station model to infer whole-stream metabolism and
+      #'   gas exchange parameters from an upstream and downstream signal.
+      #' 
+      #' @param signalIn
+      #'   The input (upstream) signal on which the MLE inference is based
+      #' @param signalOut
+      #'   The output (downstream) signal on which the MLE inference is based
+      #' @param prevResults
+      #'   The results from the previous inference
+      #' @param path
+      #'   The path to where the results should be written
+      #'   
+      #' @return
+      #'   The two-element list containint the results of the MLE.
+      #'   \itemize{
+      #'     \item objFunc: The objective function used for the MLE
+      #'     \item optimr: The results from optim performing the MLE
+      #'   }
+      #'   
+      derive = function
       (
          signalIn = NULL,
          signalOut = NULL,
@@ -102,7 +178,7 @@ TwoStationMetabMLE$set(
          par <- 0.5 *
             (
                signalIn$getVariable("par") + 
-               signalOut$getVariable("par")
+                  signalOut$getVariable("par")
             );
          
          if(!self$usepCO2) {
@@ -160,7 +236,7 @@ TwoStationMetabMLE$set(
                model = model,
                parameterTranslator = ParameterTranslatorMetab$new(model),
                predictionExtractor = predictionExtractor
-               ),
+            ),
             observation = observation,
             sd = self$sdLikelihood,
             negate = TRUE
@@ -187,14 +263,15 @@ TwoStationMetabMLE$set(
          );
          objFunc$propose(optimr$par);
          results <- list(objFunc = objFunc, optimr = optimr);
-         save(
+         saveRDS(
             results, 
             file = sprintf(
                fmt = "%s/%s.RData",
                path,
                self$outputFile
-               )
+            )
          );
          return(results);
       }
-);
+   )
+)

@@ -8,49 +8,99 @@ NULL
 #' @export
 #' 
 #' @title 
-#'   Extracts parameters from metabolism models
+#'   R6 class for extracting results from one station metabolism models
+#' 
+#' @description 
+#'   Extracts parameters used from metabolism models
 #'   
 OneStationMetabExtractor <- R6Class(
    classname = "OneStationMetabExtractor",
-   inherit = SignalSummarizer,
+   inherit = disco::SignalSummarizer,
    public = list(
+      
+      #' @field table
+      #'   Table of summary data
       table = NULL,
+      
+      #' @field index
+      #'   Index for tracking the row in the table
       index = NULL,
+      
+      #' @field resultFile
+      #'   The name of the file with analysis results
       resultFile = NULL,
+      
+      #' @field summaryFile
+      #'   The name of the file to create with the summary
       summaryFile = NULL,
+      
+      #' @field path
+      #'   Table of summary data
       path = NULL,
+      
+      # Method OneStationMetabExtractor$new ####
+      #
+      #' @description 
+      #'   Constructs a new instance of the class
+      #'   
+      #' @param rows
+      #'   number of rows in the table of extracted parameter values
+      #' @param resultFile
+      #'   name of the results files to read
+      #' @param summaryFile
+      #'   name of the summary file to create
+      #'   
       initialize = function
-         (
-            rows,
-            resultFile = "results",
-            summaryFile = "summary"
-         )
-         {
-            self$table <- data.frame(
-               GPP = numeric(length = rows),
-               ER = numeric(length = rows),
-               k600 = numeric(length = rows)
-            );
-            self$index <- 1;
-            self$resultFile <- resultFile;
-            self$summaryFile <- summaryFile;
-         }
+      (
+         rows,
+         resultFile = "results",
+         summaryFile = "summary"
       )
-);
-
-OneStationMetabExtractor$set(
-   which = "public",
-   name = "open",
-   value = function(path) 
+      {
+         self$table <- data.frame(
+            GPP = numeric(length = rows),
+            ER = numeric(length = rows),
+            k600 = numeric(length = rows)
+         );
+         self$index <- 1;
+         self$resultFile <- resultFile;
+         self$summaryFile <- summaryFile;
+      },
+      
+      # Method OneStationMetabExtractor$open ####
+      #
+      #' @description 
+      #'   Prepare to write the summary file
+      #'   
+      #' @param path
+      #'   Path where the summary file will be written
+      #'   
+      #' @return 
+      #'   No defined return value.
+      #'   
+      open = function(path) 
       {
          self$path = path;
-      }
-);
-
-OneStationMetabExtractor$set(
-   which = "public",
-   name = "summarize",
-   value = function
+      },
+      
+      # Method OneStationMetabExtractor$summarize ####
+      #
+      #' @description 
+      #'   Collects the data for the summary
+      #'   
+      #' @param signal
+      #'   The signal being summarized
+      #' @param outputPath
+      #'   The path where analysis output is located
+      #' @param label
+      #'   A label for the summary
+      #' @param timeBounds
+      #'   The temporal bounds on the summary
+      #'   
+      #' @return 
+      #'   No defined return value.
+      #'   
+      summarize = function
       (
          signal,
          outputPath,
@@ -58,7 +108,7 @@ OneStationMetabExtractor$set(
          timeBounds
       )
       {
-         load(file = sprintf(
+         results <- readRDS(file = sprintf(
             fmt = "%s/%s.RData",
             outputPath,
             self$resultFile
@@ -67,22 +117,28 @@ OneStationMetabExtractor$set(
          self$table$ER[self$index] <- results$objFunc$model$dailyER;
          self$table$k600[self$index] <- results$objFunc$model$k600;
          self$index <- self$index + 1;
-      }
-);
-
-OneStationMetabExtractor$set(
-   which = "public",
-   name = "close",
-   value = function () 
+      },
+      
+      # Method OneStationMetabExtractor$close ####
+      #
+      #' @description 
+      #'   Closes the summary output
+      #'   
+      #' @return 
+      #'   No defined return value.
+      #'   
+      close = function() 
       {
          table <- self$table;
-         save(
+         saveRDS(
             table, 
             file = sprintf(
                fmt = "%s/%s.RData",
                self$path,
                self$summaryFile
-               )
-      );
-   }
-);
+            )
+         );
+      }
+
+   )
+)

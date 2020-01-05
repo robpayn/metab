@@ -18,6 +18,7 @@ NULL
 #'    
 #' @param temp 
 #'    Numerical vector of temperatures (deg C) 
+#'    
 #' @return 
 #'    Numerical vector of densities of water in kilograms per liter
 #'    
@@ -57,6 +58,7 @@ densityWater <- function(temp)
 #'    Gas exchange rate (per time) or velocity (length per time)
 #'    at a Schmidt number of 600
 #'    (numerical vector)
+#'    
 #' @return 
 #'    Numerical vector of temperature corrected gas exchange rates 
 #'    in same units as k600 argument
@@ -76,80 +78,66 @@ kSchmidt <- function(temp, k600)
 #' @export
 #' 
 #' @title 
-#'    Class to calculate saturated DO concentration
+#'    R6 class defining a DO Saturation concentration calculator
 #'
 #' @description 
 #'    Calculates the saturation concentration of dissolved
 #'    oxygen in water based on temperature and air pressure.
-#'    Standard air pressure and a unit conversion factor for
-#'    the return value are configurable so the calculator
-#'    can be used for many different unit systems, though
-#'    temperature units must be deg C.
 #' 
-#' @usage 
-#'    DoSatCalculator$new(<arguments>)
-#' @param densityWaterFunc
-#'    The function used to estimate the density of water
-#'    from temperature.  Defaults to densityWater provided as
-#'    a utility function in this package.
-#' @param stdAirPressure
-#'    Standard air pressure at sea level in the same units
-#'    that will be used for the saturation concentration
-#'    calculation.  Defaults to 760 mm Hg.
-#' @return 
-#'    The object of class \code{DoSatCalculator} 
-#'    instantiated by the constructor
-#'    
-#' @section Methods:
-#'   \code{$new} - See usage section\cr
-#'   \code{$calculate} - 
-#'     See \code{\link{DoSatCalculator_calculate}}
-#'   
 DoSatCalculator <- R6Class(
    classname = "DoSatCalculator",
    public = list(
+      
+      #' @field densityWaterFunc
+      #'   The function used to calculate the density of water from temperature
       densityWaterFunc = NULL,
+      
+      #' @field stdAirPressure
+      #'   The air pressure under standard conditions
       stdAirPressure = NULL,
-      initialize = function(
-            densityWaterFunc = densityWater,
-            stdAirPressure = 760
-         )
-         {
-            self$densityWaterFunc <- densityWaterFunc;
-            self$stdAirPressure <- stdAirPressure;
-         }
+      
+      # Method DoSatCalculator$new
+      #
+      #' @description 
+      #'   Construct an instance of the class.
+      #'   
+      #' @param densityWaterFunc
+      #'    The function used to estimate the density of water
+      #'    from temperature.  Defaults to densityWater provided as
+      #'    a utility function in this package.
+      #' @param stdAirPressure
+      #'    Standard air pressure at sea level in the same units
+      #'    that will be used for the saturation concentration
+      #'    calculation.  Defaults to 760 mm Hg. Units here
+      #'    must be consistent with units used in other methods.
+      #'    
+      initialize = function
+      (
+         densityWaterFunc = densityWater,
+         stdAirPressure = 760
       )
-);
-
-# Method DoSatCalculator$calculate ####
-
-#' @name DoSatCalculator_calculate 
-#' 
-#' @title 
-#'   Calculate the saturated dissolved oxygen concentration
-#'   
-#' @description 
-#'   Calculates the saturated dissolved oxygen concentration based
-#'   on the provided water temperature and air pressure.
-#'   
-#' @usage 
-#'   doSatCalculator$calculate(<arguments>)
-#' @param temp
-#'   Water temperature(s) in degrees Celsius
-#' @param airPressure
-#'   Air pressure in same units as the definition of standard
-#'   air pressure in the class attribute stdAirPressure
-#'   
-#' @return 
-#'   The dissolved oxygen concentration at saturation relative
-#'   to concentrations in the overlying atmosphere (Henry's law)
-#'   
-#' @section Method of class: 
-#'   \code{\link{DoSatCalculator}}
-DoSatCalculator$set(
-   which = "public",
-   name = "calculate",
-   value = function(temp, airPressure)
+      {
+         self$densityWaterFunc <- densityWaterFunc;
+         self$stdAirPressure <- stdAirPressure;
+      },
+      
+      # Method DoSatCalculator$calculate ####
+      #
+      #' @description 
+      #'   Calculates the saturated dissolved oxygen concentration based
+      #'   on the provided water temperature and air pressure.
+      #'   
+      #' @param temp
+      #'   Water temperature(s) in degrees Celsius
+      #' @param airPressure
+      #'   Air pressure in same units as the definition of standard
+      #'   air pressure in the class attribute stdAirPressure
+      #'   
+      #' @return 
+      #'   The dissolved oxygen concentration at saturation relative
+      #'   to concentrations in the overlying atmosphere (Henry's law)
+      #'   
+      calculate = function(temp, airPressure)
       {
          normTemp <- log(
             (298.15 - temp) / 
@@ -168,128 +156,130 @@ DoSatCalculator$set(
                )
          );
       }
+   )
 );
+
 
 # Class SolarRadiation ####
 
 #' @export
 #' 
 #' @title
-#'   Theoretical solar radiation
+#'   R6 class defining incoming solar radiation
 #' 
 #' @description 
 #'   Provides the ability to make solar radiation calculations
-#'   for a given location on Earth.\cr
-#'   Usage describes the constructor for the class.
-#'   
-#' @usage 
-#'   SolarRadiation$new(<arguments>)
-#' @param latitude
-#'   Latitude on earth in decimal degrees
-#' @param longitude
-#'   Longitude on earth in decimal degrees
-#' @param differenceFromGMT
-#'   Number of hours time zone is different from GMT
-#' @param adjustDST
-#'   Number of hours to adjust the difference from GMT during 
-#'   daylight savings time.
-#'   Default value is NA, which disables daylight savings adjustments.
-#' @param solarConstantFlux
-#'   Base flux of energy from the sun.
-#'   Default value is 1364 Watts per square meter
-#' @param earthAngularVelocity
-#'   Angular velocity of earth's rotation in radians per hour.
-#'   Default value is 0.2618.
-#'   
-#' @return 
-#'   An R6 object of class SolarRadiation
-#'   
-#' @section Methods:
-#'   \code{$new} - See usage section\cr
-#'   \code{$getExtraterrestrialInsolation} - 
-#'     See \code{\link{SolarRadiation_getExtraterrestrialInsolation}}
+#'   for a given location on Earth.
 #'   
 SolarRadiation <- R6Class(
    classname = "SolarRadiation",
    public = list(
+      
+      #' @field latitudeAngle
+      #'   Angle of the latitude
       latitudeAngle = NULL,
+      
+      #' @field longitudeAngle
+      #'   Angle of the longitude
       longitudeAngle = NULL,
+      
+      #' @field differenceFromGMT
+      #'   Number of hours different from UTC
       differenceFromGMT = NULL,
+      
+      #' @field adjustDST
+      #'   Number of hours to adjust during daylight savings
       adjustDST = NULL,
+      
+      #' @field solarConstantFlux
+      #'   The solar constant for flux of radiation (for Earth)
       solarConstantFlux = NULL,
+      
+      #' @field earthAngularVelocity
+      #'   The angular velocity of Earth's rotation on its axis
       earthAngularVelocity = NULL,
-      initialize = function(
-            latitude,
-            longitude,
-            differenceFromGMT,
-            adjustDST = NA,
-            solarConstantFlux = 1364,
-            earthAngularVelocity = 0.2618
-         ) 
-         {
-            self$latitudeAngle <- 2 * pi * (latitude / 360);
-            self$longitudeAngle <- 2 * pi * (longitude / 360);
-            self$differenceFromGMT <- differenceFromGMT;
-            self$adjustDST <- adjustDST;
-            self$solarConstantFlux <- solarConstantFlux;
-            self$earthAngularVelocity <- earthAngularVelocity;
-         }
-      )
-);
-
-# Method SolarRadiation$getExtraterrestrialInsolation ####
-
-#' @name SolarRadiation_getExtraterrestrialInsolation
-#' 
-#' @title 
-#'   Method for calculating extraterrestrial solar radiation
-#'   
-#' @description 
-#'   Calculates the incoming extraterrestrial solar radiation at
-#'   the times provided
-#'   (i.e. before any influence by atmosphere) for the location
-#'   on earth represented by the SolarRadiation object.
-#' 
-#' @usage 
-#'   solarRadiation$getEgetExtraterrestrialInsolation(<arguments>)
-#' @param time
-#'   The time(s) at which solar radiation should be calculated.
-#'   Must be coercable into a POSIX type time.
-#' @param timeCT
-#'   The time in POSIXct type.
-#'   Default value is time coerced into POSIXct class.
-#' @param timeLT
-#'   The time in POSXlt type.
-#'   Default value is timeCT coerced into POSIXlt class.
-#' @param solarNoonCorrectionTime
-#'   The time basis for calculating solar noon corrections.
-#'   Defaults to a conversion to radians from a version of the
-#'   day angle.
-#' @param solarNoonCorrectionEcc
-#'   The correction for eccentricities in Earth's orbit.
-#'   Defaults to an empirical approximation from solarNoonCorrectionTime
-#' @param dayAngle
-#'   The angle representing the day of the year, if the year is represented
-#'   by 2 * pi radians
-#'   Default value is calculated based on the day of year form timeLT.
-#' @param eccCoefficient
-#'   The coefficient of correction for radiation based on eccentricities in
-#'   Earth's distance from the sun during its orbit. 
-#'   Default value is an empirical calculation from the day angle.
-#' @param declinationAngle
-#'   The declination angle of the sun relative to Earth's equator.
-#'   Default value is an empirical calculation from the day angle.
-#'   
-#' @return 
-#'   The solar radiation flux at the top of Earth's atmosphere
-#'   
-#' @section Method of class: 
-#'   \code{\link{SolarRadiation}}
-#'   
-SolarRadiation$set(
-   which = "public",
-   name = "getExtraterrestrialInsolation",
-   value = function(
+      
+      # Method SolarRadiation$new ####
+      #
+      #' @description 
+      #'   Construct a new instance of the class
+      #'   
+      #' @param latitude
+      #'   Latitude on earth in decimal degrees
+      #' @param longitude
+      #'   Longitude on earth in decimal degrees
+      #' @param differenceFromGMT
+      #'   Number of hours time zone is different from GMT
+      #' @param adjustDST
+      #'   Number of hours to adjust the difference from GMT during 
+      #'   daylight savings time.
+      #'   Default value is NA, which disables daylight savings adjustments.
+      #' @param solarConstantFlux
+      #'   Base flux of energy from the sun.
+      #'   Default value is 1364 Watts per square meter
+      #' @param earthAngularVelocity
+      #'   Angular velocity of earth's rotation in radians per hour.
+      #'   Default value is 0.2618.
+      #'   
+      initialize = function
+      (
+         latitude,
+         longitude,
+         differenceFromGMT,
+         adjustDST = NA,
+         solarConstantFlux = 1364,
+         earthAngularVelocity = 0.2618
+      ) 
+      {
+         self$latitudeAngle <- 2 * pi * (latitude / 360);
+         self$longitudeAngle <- 2 * pi * (longitude / 360);
+         self$differenceFromGMT <- differenceFromGMT;
+         self$adjustDST <- adjustDST;
+         self$solarConstantFlux <- solarConstantFlux;
+         self$earthAngularVelocity <- earthAngularVelocity;
+      },
+      
+      # Method SolarRadiation$getExtraterrestrialInsolation ####
+      #
+      #' @description 
+      #'   Calculates the incoming extraterrestrial solar radiation at
+      #'   the times provided
+      #'   (i.e. before any influence by atmosphere) for the location
+      #'   on earth represented by the SolarRadiation object.
+      #' 
+      #' @param time
+      #'   The time(s) at which solar radiation should be calculated.
+      #'   Must be coercable into a POSIX type time.
+      #' @param timeCT
+      #'   The time in POSIXct type.
+      #'   Default value is time coerced into POSIXct class.
+      #' @param timeLT
+      #'   The time in POSXlt type.
+      #'   Default value is timeCT coerced into POSIXlt class.
+      #' @param solarNoonCorrectionTime
+      #'   The time basis for calculating solar noon corrections.
+      #'   Defaults to a conversion to radians from a version of the
+      #'   day angle.
+      #' @param solarNoonCorrectionEcc
+      #'   The correction for eccentricities in Earth's orbit.
+      #'   Defaults to an empirical approximation from solarNoonCorrectionTime
+      #' @param dayAngle
+      #'   The angle representing the day of the year, if the year is represented
+      #'   by 2 * pi radians
+      #'   Default value is calculated based on the day of year form timeLT.
+      #' @param eccCoefficient
+      #'   The coefficient of correction for radiation based on eccentricities in
+      #'   Earth's distance from the sun during its orbit. 
+      #'   Default value is an empirical calculation from the day angle.
+      #' @param declinationAngle
+      #'   The declination angle of the sun relative to Earth's equator.
+      #'   Default value is an empirical calculation from the day angle.
+      #'   
+      #' @return 
+      #'   The solar radiation flux at the top of Earth's atmosphere
+      #'   
+      getExtraterrestrialInsolation = function
+      (
          time,
          timeCT = as.POSIXct(time),
          timeLT = as.POSIXlt(timeCT),
@@ -361,4 +351,5 @@ SolarRadiation$set(
                cos(zenithAngle)
          );
       }
+   )
 )

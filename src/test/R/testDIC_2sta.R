@@ -27,9 +27,10 @@ knownER <- -300;
 knownk600 <- 12;
 
 knownsdDO <- 2;
+knownsdpCO2 <- 8.75;
 
 # Define the model object to be optimized.
-model <- TwoStationMetabDo$new(
+model <- TwoStationMetabDoDic$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
@@ -39,7 +40,10 @@ model <- TwoStationMetabDo$new(
    upstreamTemp = doData$temp,
    upstreamDO = doData$dissolvedOxygen * 31.25,
    downstreamTime = as.POSIXct(doData$time) + 3600,
-   downstreamTemp = doData$temp
+   downstreamTemp = doData$temp,
+   upstreamDIC = rep(2400, length(doData$time)),
+   pCO2air = 400,
+   alkalinity = 2410
 );
 
 # Define the objective function to use in the optimization

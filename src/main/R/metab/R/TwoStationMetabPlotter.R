@@ -7,37 +7,204 @@ NULL
 
 #' @export
 #' 
+#' @title 
+#'   R6 class defining a plotter for a two station metabolism model
+#'   
+#' @description 
+#'   Plots a signal of DO and pCO2 from a two station model of metabolism
+#'   
 TwoStationMetabPlotter <- R6Class(
    classname = "TwoStationMetabPlotter",
    inherit = disco::TransferFunctionPlotter,
    public = list(
+      #' @field timeTicks
+      #'   Number of ticks on the time axis
       timeTicks = NULL,
+      
+      #' @field resultFile
+      #'   Base file name for the results.
       resultFile = NULL,
+      
+      #' @field results
+      #'   The results object to be plotted
       results = NULL,
+      
+      #' @field subTitle
+      #'   Subtitle for headings on plots, will appear over right
+      #'   panel on legend.
       subTitle = NULL,
+      
+      #' @field format
+      #'   Data frame aggregating the formats for all the plots
+      format = NULL,
+      
+      # Method TwoStationMetabPlotter$new ####
+      #
+      #' @description 
+      #'   Construct a new instance of the class.
+      #' 
+      #' @param ...
+      #'   Arguments passed to the constructor of the super class
+      #' @param timeTicks
+      #'   Number of ticks on the time axis
+      #' @param resultFile
+      #'   Base file name for the results.
+      #'   Defaults to "results".
+      #' @param subTitle
+      #'   Subtitle for headings on plots, will appear over right
+      #'   panel on legend.
+      #'   Defaults to an empty string (blank).
+      #' @param format.doObsUp
+      #'   Format for upstream DO observations.
+      #'   See defaults in usage.
+      #' @param format.doObsDown
+      #'   Format for downstream DO observations.
+      #'   See defaults in usage.
+      #' @param format.doPred
+      #'   Format for downstream DO predictions
+      #'   See defaults in usage.
+      #' @param format.parUp
+      #'   Format for upstream PAR
+      #'   See defaults in usage.
+      #' @param format.parDown
+      #'   Format for downstream PAR
+      #'   See defaults in usage.
+      #' @param format.pCO2ObsUp
+      #'   Format for upstream pCO2 observations.
+      #'   See defaults in usage.
+      #' @param format.pCO2ObsDown
+      #'   Format for downstream pCO2 observations.
+      #'   See defaults in usage.
+      #' @param format.pCO2Pred
+      #'   Format for pCO2 predictions
+      #'   See defaults in usage.
+      #' @param format.tempUp
+      #'   Format for upstream temperature
+      #'   See defaults in usage.
+      #' @param format.tempDown
+      #'   Format for downstream temperature
+      #'   See defaults in usage.
+      #' @param format.doSatDown
+      #'   Format for downstream saturation DO concentrations
+      #'   See defaults in usage.
       initialize = function
-         (
-            ..., 
-            timeTicks, 
-            resultFile = "results",
-            subTitle = ""
+      (
+         ..., 
+         timeTicks, 
+         resultFile = "results",
+         subTitle = "",
+         format.doObsUp = list(
+            name = "[DO] observed upstream",
+            lty = NA,
+            pch = 46,
+            col = "black",
+            lwd = 1
+         ),
+         format.doObsDown = list(
+            name = "[DO] observed downstream",
+            lty = NA,
+            pch = 176,
+            col = "black",
+            lwd = 1
+         ),
+         format.doPred = list(
+            name = "[DO] modeled downstream",
+            lty = "solid",
+            pch = NA,
+            col = "black",
+            lwd = 2
+         ),
+         format.parUp = list(
+            name = "PAR upstream",
+            lty = NA,
+            pch = 46,
+            col = "red",
+            lwd = 1
+         ),
+         format.parDown = list(
+            name = "PAR downstream",
+            lty = NA,
+            pch = 176,
+            col = "red",
+            lwd = 1
+         ),
+         format.pCO2ObsUp = list(
+            name = "pCO2 observed upstream",
+            lty = NA,
+            pch = 46,
+            col = "green3",
+            lwd = 1
+         ),
+         format.pCO2ObsDown = list(
+            name = "pCO2 observed downstream",
+            lty = NA,
+            pch = 176,
+            col = "green3",
+            lwd = 1
+         ),
+         format.pCO2Pred = list(
+            name = "pCO2 modeled downstream",
+            lty = "solid",
+            pch = NA,
+            col = "green3",
+            lwd = 2
+         ),
+         format.tempUp = list(
+            name = "Temperature upstream",
+            lty = NA,
+            pch = 46,
+            col = "black",
+            lwd = 1
+         ),
+         format.tempDown = list(
+            name = "Temperature downstream",
+            lty = NA,
+            pch = 176,
+            col = "black",
+            lwd = 1
+         ),
+         format.doSatDown = list(
+            name = "[DO] saturated downstream",
+            lty = "dotted",
+            pch = NA,
+            col = "black",
+            lwd = 1
          )
-         {
-            super$initialize(...);
-            self$timeTicks <- timeTicks;
-            self$resultFile <- resultFile;
-            self$subTitle <- subTitle;
-         }
       )
-);
-
-
-# Method TwoStationMetabPlotter$open ####
-
-TwoStationMetabPlotter$set(
-   which = "public",
-   name = "open",
-   value = function
+      {
+         super$initialize(...);
+         self$timeTicks <- timeTicks;
+         self$resultFile <- resultFile;
+         self$subTitle <- subTitle;
+         
+         self$format <- rbind.data.frame(
+            doObsUp = format.doObsUp,
+            doObsDown = format.doObsDown,
+            doPred = format.doPred,
+            parUp = format.parUp,
+            parDown = format.parDown,
+            pCO2ObsUp = format.pCO2ObsUp,
+            pCO2ObsDown = format.pCO2ObsDown,
+            pCO2Pred = format.pCO2Pred,
+            tempUp = format.tempUp,
+            tempDown = format.tempDown,
+            doSatDown = format.doSatDown,
+            stringsAsFactors = FALSE
+         );
+      },
+      
+      # Method TwoStationMetabPlotter$open ####
+      #
+      #' @description 
+      #'   Opens the pdf for writing the plots
+      #'   
+      #' @param path
+      #'   The path where the pdf of figures should be written
+      #' 
+      #' @return 
+      #'   No defined return value
+      #'   
+      open = function
       (
          path
       )
@@ -57,42 +224,53 @@ TwoStationMetabPlotter$set(
          );
          text(
             x = 0.5,
-            y = 0.8,
+            y = 0.9,
             labels = "Left panel legend:",
             font = 2
-            );
+         );
          legend(
             x = "center",
             bty = 'n',
             legend = c(
-               '[DO] upstream observed', 
-               '[DO] downstream observed', 
-               '[DO] downstream modeled (if available)', 
-               'PAR upstream',
-               'PAR downstream'
-               ),
+               self$format["doObsUp", "name"],
+               self$format["doObsDown", "name"], 
+               self$format["doSatDown", "name"], 
+               self$format["doPred", "name"], 
+               self$format["parUp", "name"],
+               self$format["parDown", "name"]
+            ),
             lty = c(
-               NA,
-               NA,
-               'solid',
-               NA,
-               NA
-               ),
-            lwd = 2,
+               self$format["doObsUp", "lty"],
+               self$format["doObsDown", "lty"], 
+               self$format["doSatDown", "lty"], 
+               self$format["doPred", "lty"], 
+               self$format["parUp", "lty"],
+               self$format["parDown", "lty"]
+            ),
+            lwd = c(
+               self$format["doObsUp", "lwd"],
+               self$format["doObsDown", "lwd"], 
+               self$format["doSatDown", "lwd"], 
+               self$format["doPred", "lwd"], 
+               self$format["parUp", "lwd"],
+               self$format["parDown", "lwd"]
+            ),
             pch = c(
-               46,
-               176,
-               NA,
-               46,
-               176
-               ),
+               self$format["doObsUp", "pch"],
+               self$format["doObsDown", "pch"], 
+               self$format["doSatDown", "pch"], 
+               self$format["doPred", "pch"], 
+               self$format["parUp", "pch"],
+               self$format["parDown", "pch"]
+            ),
             col = c(
-               'black',
-               'black',
-               'black',
-               'red',
-               'red'
-               )
+               self$format["doObsUp", "col"],
+               self$format["doObsDown", "col"], 
+               self$format["doSatDown", "col"], 
+               self$format["doPred", "col"], 
+               self$format["parUp", "col"],
+               self$format["parDown", "col"]
+            )
          );
          
          plot(
@@ -111,50 +289,69 @@ TwoStationMetabPlotter$set(
             y = 0.8,
             labels = "Right panel legend:",
             font = 2
-            )
+         )
          legend(
             x = "center", 
             bty = 'n',
             legend = c(
-               'pCO2 upstream observed',
-               'pCO2 downstream observed',
-               'pCO2 downstream modeled (if available)', 
-               'Temperature upstream',
-               'Temperature downstream'
-               ),
+               self$format["pCO2ObsUp", "name"],
+               self$format["pCO2ObsDown", "name"], 
+               self$format["pCO2Pred", "name"], 
+               self$format["tempUp", "name"],
+               self$format["tempDown", "name"]
+            ),
             lty = c(
-               NA,
-               NA,
-               'solid',
-               NA,
-               NA
-               ),
-            lwd = 2,
+               self$format["pCO2ObsUp", "lty"],
+               self$format["pCO2ObsDown", "lty"], 
+               self$format["pCO2Pred", "lty"], 
+               self$format["tempUp", "lty"],
+               self$format["tempDown", "lty"]
+            ),
+            lwd = c(
+               self$format["pCO2ObsUp", "lwd"],
+               self$format["pCO2ObsDown", "lwd"], 
+               self$format["pCO2Pred", "lwd"], 
+               self$format["tempUp", "lwd"],
+               self$format["tempDown", "lwd"]
+            ),
             pch = c(
-               46,
-               176,
-               NA,
-               46,
-               176
-               ),
+               self$format["pCO2ObsUp", "pch"],
+               self$format["pCO2ObsDown", "pch"], 
+               self$format["pCO2Pred", "pch"], 
+               self$format["tempUp", "pch"],
+               self$format["tempDown", "pch"]
+            ),
             col = c(
-               'black',
-               'black',
-               'black',
-               'red',
-               'red'
-               )
+               self$format["pCO2ObsUp", "col"],
+               self$format["pCO2ObsDown", "col"], 
+               self$format["pCO2Pred", "col"], 
+               self$format["tempUp", "col"],
+               self$format["tempDown", "col"]
+            )
          );
-      }
-);
-
-
-# Method OneStationMetabPlotter$summarize ####
-
-TwoStationMetabPlotter$set(
-   which = "public",
-   name = "summarize",
-   value = function
+      },
+      
+      # Method TwoStationMetabPlotter$summarize ####
+      #
+      #' @description 
+      #'   Summarize the data in a two panel visualization
+      #'   
+      #' @param signalIn
+      #'   The input signal object that contains upstream observations
+      #' @param signalOut
+      #'   The output signal object that contains downstream observations
+      #' @param outputPath
+      #'   A path to results of a metabolism analysis.
+      #'   Not necessary if summarizer does not need output.
+      #' @param label
+      #'   A label for the summary
+      #' @param timeBounds  
+      #'   The temporal bounds on the summary
+      #'   
+      #' @return 
+      #'   No defined return value
+      #'   
+      summarize = function
       (
          signalIn = NULL,
          signalOut = NULL,
@@ -180,31 +377,42 @@ TwoStationMetabPlotter$set(
          # Load results if plotted and alter y axis scale
          # accordingly for results
          if (plotResults) {
-            load(file = sprintf(
+            self$results <- readRDS(file = sprintf(
                fmt = "%s/%s.RData",
                self$outputPath,
                self$resultFile
             ));
-            self$results <- results;
             ymin <- min(
                ymin, 
                self$results$objFunc$model$output$do,
-               self$results$objFunc$model$output$doSat
+               self$results$objFunc$model$output$doSat,
+               na.rm = TRUE
             );
             ymax <- max(
                ymax, 
                self$results$objFunc$model$output$do,
-               self$results$objFunc$model$output$doSat
+               self$results$objFunc$model$output$doSat,
+               na.rm = TRUE
             );
          }
          
          signalOut$plot(
             variableName = "do",
-            pch = 176,
+            pch = self$format["doObsDown", "pch"],
+            lwd = self$format["doObsDown", "lwd"],
+            col = self$format["doObsDown", "col"],
             xaxt = "n",
             xlab = "",
+            ylab = "",
             xlim = timeBounds,
             ylim = c(ymin, ymax)
+         );
+         mtext(
+            text = bquote(.("[DO] (")*mu*mol~L^-1*.(")")),
+            side = 2,
+            line = 2,
+            cex = 0.7,
+            col = self$format["doObsDown", "col"]
          );
          axis.POSIXct(
             side = 1,
@@ -218,7 +426,9 @@ TwoStationMetabPlotter$set(
          points(
             x = signalOut$time,
             y = doIn,
-            pch = 46
+            pch = self$format["doObsUp", "pch"],
+            lwd = self$format["doObsUp", "lwd"],
+            col = self$format["doObsUp", "col"]
          );
          mtext(
             side = 3,
@@ -232,20 +442,26 @@ TwoStationMetabPlotter$set(
          if (plotResults) {
             lines(
                x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$output$doSat,
-               lty = "dotted",
-               lwd = 2
+               y = self$results$objFunc$model$downstreamDOSat,
+               lty = self$format["doSatDown", "lty"],
+               lwd = self$format["doSatDown", "lwd"],
+               col = self$format["doSatDown", "col"]
             );
             lines(
                x = self$results$objFunc$model$output$time,
                y = self$results$objFunc$model$output$do,
-               lwd = 2
+               lty = self$format["doPred", "lty"],
+               lwd = self$format["doPred", "lwd"],
+               col = self$format["doPred", "col"]
             );
             mtext(
-               text = sprintf(
-                  fmt = "GPP = %1.2e",
-                  results$objFunc$params[1]
-                  ),
+               text = bquote(paste(
+                  .(sprintf(
+                     fmt = "GPP = %1.2e",
+                     self$results$objFunc$params[1]
+                  )),
+                  ~mu*mol~L^-1~d^-1
+               )),
                side = 3,
                line = 0.5,
                cex = 0.6,
@@ -263,14 +479,15 @@ TwoStationMetabPlotter$set(
          plot(
             x = signalOut$time,
             y = parOut,
-            pch = 176,
+            pch = self$format["parDown", "pch"],
+            lwd = self$format["parDown", "lwd"],
+            col = self$format["parDown", "col"],
             xaxt = "n",
             xlab = "",
             xlim = timeBounds,
             yaxt = "n",
             ylab = "",
-            ylim = c(ymax, ymin),
-            col = "red"
+            ylim = c(ymax, ymin)
          );
          axis(
             side = 4
@@ -280,13 +497,14 @@ TwoStationMetabPlotter$set(
             line = 2.5,
             cex = 0.7,
             text = "PAR (relative intensity)",
-            col = "red"
+            col = self$format["parDown", "col"]
          );
          points(
             x = signalOut$time,
             y = parIn,
-            pch = 46,
-            col = "red"
+            pch = self$format["parUp", "pch"],
+            lwd = self$format["parUp", "lwd"],
+            col = self$format["parUp", "col"]
          );
          
          # Plot pCO2
@@ -297,11 +515,14 @@ TwoStationMetabPlotter$set(
          ymax <- max(pCO2In, pCO2Out, na.rm = TRUE);
          signalOut$plot(
             variableName = "pCO2",
-            pch = 176,
+            pch = self$format["pCO2ObsDown", "pch"],
+            lwd = self$format["pCO2ObsDown", "lwd"],
+            col = self$format["pCO2ObsDown", "col"],
             xaxt = "n",
             xlab = "",
             xlim = timeBounds,
-            ylim = c(ymin, ymax)
+            ylim = c(ymin, ymax),
+            ylab = ""
          );
          axis.POSIXct(
             side = 1,
@@ -315,37 +536,55 @@ TwoStationMetabPlotter$set(
          points(
             x = signalOut$time,
             y = pCO2In,
-            pch = 46
+            pch = self$format["pCO2ObsUp", "pch"],
+            lwd = self$format["pCO2ObsUp", "lwd"],
+            col = self$format["pCO2ObsUp", "col"]
          );
          if (plotResults) {
             if (!is.null(self$results$objFunc$model$output$pCO2)) {
                lines(
                   x = self$results$objFunc$model$output$time,
                   y = self$results$objFunc$model$output$pCO2,
-                  lwd = 2
+                  lty = self$format["pCO2Pred", "lty"],
+                  lwd = self$format["pCO2Pred", "lwd"],
+                  col = self$format["pCO2Pred", "col"]
                );
             }
             mtext(
-               text = sprintf(
-                  fmt = "ER = %1.2e",
-                  results$objFunc$params[2]
-               ),
+               text = bquote(paste(
+                  .(sprintf(
+                     fmt = "ER = %1.2e",
+                     self$results$objFunc$params[2]
+                  )),
+                  ~mu*mol~L^-1~d^-1
+               )),
                side = 3,
                line = 0.5,
                cex = 0.6,
                adj = 0
             );
             mtext(
-               text = sprintf(
-                  fmt = "k600 = %1.2e",
-                  results$objFunc$params[3]
-               ),
+               text = bquote(paste(
+                  k[600],
+                  .(sprintf(
+                     fmt = " = %1.2e",
+                     self$results$objFunc$params[3]
+                  )),
+                  ~d^-1
+               )),
                side = 3,
                line = 0.5,
                cex = 0.6,
                adj = 1
             );
          }
+         mtext(
+            text = bquote(pCO[2]~.("(")*mu*atm*.(")")),
+            side = 2,
+            line = 2.5,
+            cex = 0.7,
+            col = self$format["pCO2ObsDown", "col"]
+         );
          
          # Plot temperature
          
@@ -357,14 +596,15 @@ TwoStationMetabPlotter$set(
          plot(
             x = signalOut$time,
             y = tempOut,
-            pch = 176,
+            pch = self$format["tempDown", "pch"],
+            lwd = self$format["tempDown", "lwd"],
+            col = self$format["tempDown", "col"],
             xaxt = "n",
             xlab = "",
             xlim = timeBounds,
             yaxt = "n",
             ylab = "",
-            ylim = c(ymin, ymax),
-            col = "red"
+            ylim = c(ymin, ymax)
          );
          axis(
             side = 4
@@ -374,14 +614,15 @@ TwoStationMetabPlotter$set(
             line = 2.5,
             cex = 0.7,
             text = "Temperature (degrees C)",
-            col = "red"
+            col = self$format["tempDown", "col"]
          );
          points(
             x = signalOut$time,
             y = tempIn,
-            pch = 46,
-            col = "red"
+            pch = self$format["tempUp", "pch"],
+            lwd = self$format["tempUp", "lwd"],
+            col = self$format["tempUp", "col"]
          );
-
       }
-);
+   )
+)
