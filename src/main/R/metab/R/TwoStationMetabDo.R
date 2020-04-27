@@ -27,11 +27,36 @@ TwoStationMetabDo <- R6Class(
       
       #' @field dailyGPP
       #'   Model parameter for daily gross primary production
+      #'   based on C atoms fixed.
+      #'   Units of micromoles per liter per day.
       dailyGPP = NULL, 
       
+      #' @field ratioDoCfix
+      #'   Ratio of DO molecules produced relative to carbon atoms fixed.
+      ratioDoCfix = NULL,
+      
+      #' @field dailyGPPDO
+      #'   Model parameter for daily gross primary production
+      #'   based on oxygen molecules produced.
+      #'   Units of micromoles per liter per day.
+      dailyGPPDO = NULL,
+      
       #' @field dailyER
-      #'   Model parameter for daily ecosystem respiration
+      #'   Model parameter for daily aerobic ecosystem respiration
+      #'   based on carbon atoms respired.
+      #'   Units of micromoles per liter per day.
       dailyER = NULL, 
+      
+      #' @field ratioDoCresp
+      #'    Ratio of DO molecules consumed relative to carbon atoms respired.
+      #'    Defaults to 1.
+      ratioDoCresp = NULL,
+      
+      #' @field dailyERDO
+      #'   Model parameter for daily aerobic ecosystem respiration
+      #'   based on oxygen molecules consumed.
+      #'   Units of micromoles per liter per day.
+      dailyERDO = NULL, 
       
       #' @field k600
       #'   Model parameter for the gas exchange rate
@@ -97,11 +122,17 @@ TwoStationMetabDo <- R6Class(
       #'    Units depend on the unit conversion factor for DO saturation.
       #'    Default value of the unit conversion factor results in
       #'    units of micomolarity per day.
+      #' @param ratioDoCfix
+      #'    Ratio of DO molecules produced relative to carbon atoms fixed.
+      #'    Defaults to 1.
       #' @param dailyER 
       #'    Daily average influence of ecosystem respiration on oxygen.
       #'    Units depend on the unit conversion factor for DO saturation.
       #'    Default value of the unit conversion factor results in
       #'    units of micomolarity per day.
+      #' @param ratioDoCresp
+      #'    Ratio of DO molecules consumed relative to carbon atoms respired.
+      #'    Defaults to -1.
       #' @param k600 
       #'    Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
       #'    depending on saturation deficit. Units are per day.
@@ -146,12 +177,14 @@ TwoStationMetabDo <- R6Class(
       #' @param kSchmidtFunc
       #'    Option to change the function used for calculating the gas exchange
       #'    rate from the gas exchange parameter normalized to a Schmidt number.
-      #'    Defaults to \code{\link{kSchmidt}}
+      #'    Defaults to \code{\link{kSchmidtDO}}
       #'
       initialize = function
       (
          dailyGPP, 
+         ratioDoCfix = 1.0,
          dailyER, 
+         ratioDoCresp = -1.0,
          k600,
          airPressure, 
          par,
@@ -165,12 +198,14 @@ TwoStationMetabDo <- R6Class(
          doSatCalculator = DoSatCalculator$new(
             stdAirPressure = stdAirPressure
          ),
-         kSchmidtFunc = kSchmidt
+         kSchmidtFunc = kSchmidtDO
       ) 
       {
          # Populate attributes
-         self$dailyGPP <- dailyGPP; 
+         self$dailyGPP <- dailyGPP;
+         self$ratioDoCfix <- ratioDoCfix;
          self$dailyER <- dailyER;
+         self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
          self$airPressure <- airPressure;
          self$par <- par;
@@ -241,13 +276,18 @@ TwoStationMetabDo <- R6Class(
       #'    
       run = function() 
       {
+         # Calculate the effect of metabolism on DO
+         self$dailyGPPDO <- self$dailyGPP * self$ratioDoCfix;
+         self$dailyERDO <- self$dailyER * self$ratioDoCresp;
+
+         # Calculate the saturation deficit upstream
          upstreamDODeficit <- self$upstreamDOSat - self$upstreamDO;
          
          # Calculate the temperature adjusted gas exchange rate from 
          # the k600 rate at a Schmidt number of 600
-         k <- self$kSchmidtFunc(
-            0.5 * (self$upstreamTemp + self$downstreamTemp), 
-            self$k600
+         k <- 0.5 * (
+            self$kSchmidtFunc(self$upstreamTemp, self$k600) + 
+            self$kSchmidtFunc(self$downstreamTemp, self$k600)
          );
          
          # Calculate the residence time of each parcel of water
@@ -255,9 +295,9 @@ TwoStationMetabDo <- R6Class(
          
          # Calculate the DO production and consumption for
          # each time step
-         doProduction <- self$dailyGPP * 
+         doProduction <- self$dailyGPPDO * 
             ((self$par * residenceTime) / self$parTotal); 
-         doConsumption <- residenceTime * self$dailyER;
+         doConsumption <- residenceTime * self$dailyERDO;
          doEquilibration <- residenceTime * k * 
             (0.5 * (upstreamDODeficit + self$downstreamDOSat));
          

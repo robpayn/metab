@@ -109,7 +109,7 @@ OneStationMetabPlotter <- R6Class(
             lwd = 1
          ),
          format.pCO2Obs = list(
-            name = "pCO2 observed",
+            name = "pCO2 or DIC observed",
             lty = NA,
             pch = 1,
             col = "green3",
@@ -130,7 +130,7 @@ OneStationMetabPlotter <- R6Class(
             lwd = 2
          ),
          format.pCO2Pred = list(
-            name = "pCO2 modeled",
+            name = "pCO2 or DIC modeled",
             lty = "solid",
             pch = NA,
             col = "green3",
@@ -344,13 +344,9 @@ OneStationMetabPlotter <- R6Class(
          # Set the signal if it is provided
          if (!is.null(signal)) {
             self$signal <- signal;
-         } else {
-            if (is.null(self$signal)) {
-               stop(paste(
-                  "No signal provided for the OneStationMetabPlotter$summarize method."
-               ));
-            }
-         }
+         } 
+         # The signal is not plotted if the signal is not provided
+         plotSignal <- !is.null(self$signal);
          
          # Set the output path if provided
          if(!is.null(outputPath)) {
@@ -359,46 +355,127 @@ OneStationMetabPlotter <- R6Class(
          # Results are not plotted if output path is not provided
          plotResults <- !is.null(self$outputPath);
          
-         # Plot DO
-         
-         # Determine y axis scale for DO
-         ylim <- c(
-            min(self$signal$getVariable("do"), na.rm = TRUE),
-            max(self$signal$getVariable("do"), na.rm = TRUE)
-         );
-         # Load results if plotted and alter y axis scale
-         # accordingly for results
-         if (plotResults) {
+         # Load the results file if model results are to be plotted
+         if(plotResults) {
             self$results <- readRDS(file = sprintf(
                fmt = "%s/%s.RData",
                self$outputPath,
                self$resultFile
             ));
+         }
+         
+         if(!(plotSignal || plotResults)) {
+            stop("Plotter needs at least one of signal or model results to plot.")
+         }
+         
+         # Plot DO
+         
+         # Plot the DO observations
+         if(plotSignal) {
+            ylim <- c(
+               min(self$signal$getVariable("do"), na.rm = TRUE),
+               max(self$signal$getVariable("do"), na.rm = TRUE)
+            );
+            if(plotResults) {
+               ylim <- c(
+                  min(
+                     ylim[1], 
+                     self$results$objFunc$model$output$do,
+                     self$results$objFunc$model$output$doSat,
+                     na.rm = TRUE
+                  ),
+                  max(
+                     ylim[2], 
+                     self$results$objFunc$model$output$do,
+                     self$results$objFunc$model$output$doSat,
+                     na.rm = TRUE
+                  )
+               );
+            }
+            self$signal$plot(
+               variableName = "do",
+               xaxt = "n",
+               ylim = ylim,
+               ylab = "",
+               pch = self$format["doObs", "pch"],
+               col = self$format["doObs", "col"],
+               lwd = self$format["doObs", "lwd"]
+            );
+            if(plotResults) {
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$output$doSat,
+                  lty = self$format["doSat", "lty"],
+                  col = self$format["doSat", "col"],
+                  lwd = self$format["doSat", "lwd"]
+               );
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$output$do,
+                  lty = self$format["doPred", "lty"],
+                  col = self$format["doPred", "col"],
+                  lwd = self$format["doPred", "lwd"]
+               );
+               mtext(
+                  text = bquote(paste(
+                     .(sprintf(
+                        fmt = "GPP = %1.2e",
+                        self$results$objFunc$model$dailyGPP
+                     )),
+                     ~mu*mol~L^-1~d^-1
+                  )),
+                  side = 3,
+                  line = 0.5,
+                  cex = 0.6,
+                  adj = 1
+               );
+            }
+         } else {
             ylim <- c(
                min(
-                  ylim[1], 
                   self$results$objFunc$model$output$do,
                   self$results$objFunc$model$output$doSat,
                   na.rm = TRUE
                ),
                max(
-                  ylim[2], 
                   self$results$objFunc$model$output$do,
                   self$results$objFunc$model$output$doSat,
                   na.rm = TRUE
                )
             );
+            plot(
+               x = self$results$objFunc$model$output$time,
+               y = self$results$objFunc$model$output$doSat,
+               type = "l",
+               xaxt = "n",
+               xlab = "time",
+               ylim = ylim,
+               ylab = "",
+               lty = self$format["doSat", "lty"],
+               col = self$format["doSat", "col"],
+               lwd = self$format["doSat", "lwd"]
+            );
+            lines(
+               x = self$results$objFunc$model$output$time,
+               y = self$results$objFunc$model$output$do,
+               lty = self$format["doPred", "lty"],
+               col = self$format["doPred", "col"],
+               lwd = self$format["doPred", "lwd"]
+            );
+            mtext(
+               text = bquote(paste(
+                  .(sprintf(
+                     fmt = "GPP = %1.2e",
+                     self$results$objFunc$model$dailyGPP
+                  )),
+                  ~mu*mol~L^-1~d^-1
+               )),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 1
+            );
          }
-         # Plot the DO observations
-         self$signal$plot(
-            variableName = "do",
-            xaxt = "n",
-            ylim = ylim,
-            ylab = "",
-            pch = self$format["doObs", "pch"],
-            col = self$format["doObs", "col"],
-            lwd = self$format["doObs", "lwd"]
-         );
          mtext(
             text = bquote(.("[DO] (")*mu*mol~L^-1*.(")")),
             side = 2,
@@ -423,182 +500,244 @@ OneStationMetabPlotter <- R6Class(
             cex = 0.7
          );
          
-         # Plot the best fit DO model if results are plotted
-         if (plotResults) {
-            lines(
-               x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$output$doSat,
-               lty = self$format["doSat", "lty"],
-               col = self$format["doSat", "col"],
-               lwd = self$format["doSat", "lwd"]
-            );
-            lines(
-               x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$output$do,
-               lty = self$format["doPred", "lty"],
-               col = self$format["doPred", "col"],
-               lwd = self$format["doPred", "lwd"]
-            );
-            mtext(
-               text = bquote(paste(
-                  .(sprintf(
-                     fmt = "GPP = %1.2e",
-                     self$results$objFunc$params[1]
-                  )),
-                  ~mu*mol~L^-1~d^-1
-               )),
-               side = 3,
-               line = 0.5,
-               cex = 0.6,
-               adj = 1
-            );
-         }
-         
          # Reset the axes scaling for inorganic carbon
          par(new = TRUE);
          
+         if (plotSignal) {
+            plotDICSignal <- !is.null(self$signal$getVariable("pCO2"));
+         } else {
+            plotDICSignal <- FALSE;
+         }
+         if (plotResults) {
+            plotDICResults <- !is.null(self$results$objFunc$model$output$pCO2);
+         } else {
+            plotDICResults <- FALSE;
+         }
+         
          if (!self$plotDIC) {
             
-            # Determine y axis scale for pCO2
-            ylim <- c(
-               min(self$signal$getVariable("pCO2"), na.rm = TRUE),
-               max(self$signal$getVariable("pCO2"), na.rm = TRUE)
-            );
-            
-            # Alter y axis scale
-            # accordingly for results, if they are plotted
-            if (plotResults) {
+            # Plot the pCO2 observations
+            if (plotSignal && plotDICSignal) {
+               ylim <- c(
+                  min(self$signal$getVariable("pCO2"), na.rm = TRUE),
+                  max(self$signal$getVariable("pCO2"), na.rm = TRUE)
+               );
+               if(plotResults && plotDICResults) {
+                  ylim <- c(
+                     min(
+                        ylim[1], 
+                        self$results$objFunc$model$output$pCO2,
+                        na.rm = TRUE
+                     ),
+                     max(
+                        ylim[2], 
+                        self$results$objFunc$model$output$pCO2,
+                        na.rm = TRUE
+                     )
+                  );
+               }
+               self$signal$plot(
+                  variableName = "pCO2",
+                  xaxt = "n",
+                  yaxt = "n",
+                  ylim = ylim,
+                  ylab = "",
+                  pch = self$format["pCO2Obs", "pch"],
+                  col = self$format["pCO2Obs", "col"],
+                  lwd = self$format["pCO2Obs", "lwd"]
+               );
+               if (plotResults && plotDICResults) {
+                  if (!is.null(self$results$objFunc$model$output$pCO2)) {
+                     lines(
+                        x = self$results$objFunc$model$output$time,
+                        y = self$results$objFunc$model$output$pCO2,
+                        lty = self$format["pCO2Pred", "lty"],
+                        col = self$format["pCO2Pred", "col"],
+                        lwd = self$format["pCO2Pred", "lwd"]
+                     );
+                  }
+               }
+            } else if (plotDICResults) {
                ylim <- c(
                   min(
-                     ylim[1], 
                      self$results$objFunc$model$output$pCO2,
                      na.rm = TRUE
                   ),
                   max(
-                     ylim[2], 
                      self$results$objFunc$model$output$pCO2,
                      na.rm = TRUE
                   )
                );
-            }
-            
-            # Plot the pCO2 observations
-            self$signal$plot(
-               variableName = "pCO2",
-               xaxt = "n",
-               yaxt = "n",
-               ylim = ylim,
-               ylab = "",
-               pch = self$format["pCO2Obs", "pch"],
-               col = self$format["pCO2Obs", "col"],
-               lwd = self$format["pCO2Obs", "lwd"]
-            );
-            axis(
-               side = 4
-            );
-            mtext(
-               text = bquote(pCO[2]~.("(")*mu*atm*.(")")),
-               side = 4,
-               line = 2.5,
-               cex = 0.7,
-               col = self$format["pCO2Obs", "col"]
-            );
-            if (plotResults) {
                if (!is.null(self$results$objFunc$model$output$pCO2)) {
-                  lines(
+                  plot(
                      x = self$results$objFunc$model$output$time,
                      y = self$results$objFunc$model$output$pCO2,
+                     type = "l",
+                     xaxt = "n",
+                     xlab = "",
+                     yaxt = "n",
+                     ylim = ylim,
+                     ylab = "",
                      lty = self$format["pCO2Pred", "lty"],
                      col = self$format["pCO2Pred", "col"],
                      lwd = self$format["pCO2Pred", "lwd"]
                   );
                }
             }
-            
+            if(plotDICSignal || plotDICResults) {
+               axis(
+                  side = 4
+               );
+               mtext(
+                  text = bquote(pCO[2]~.("(")*mu*atm*.(")")),
+                  side = 4,
+                  line = 2.5,
+                  cex = 0.7,
+                  col = self$format["pCO2Obs", "col"]
+               );
+            }
+
          } else {
             
-            # Determine y axis scale for DIC
-            ylim <- c(
-               min(self$signal$getVariable("dic"), na.rm = TRUE),
-               max(self$signal$getVariable("dic"), na.rm = TRUE)
-            );
-            
-            # Alter y axis scale
-            # accordingly for results, if they are plotted
-            if (plotResults) {
+            # Plot the DIC observations
+            if(plotSignal && plotDICSignal) {
+               ylim <- c(
+                  min(self$signal$getVariable("dic"), na.rm = TRUE),
+                  max(self$signal$getVariable("dic"), na.rm = TRUE)
+               );
+               if(plotResults && plotDICResults) {
+                  ylim <- c(
+                     min(
+                        ylim[1], 
+                        self$results$objFunc$model$output$dic,
+                        na.rm = TRUE
+                     ),
+                     max(
+                        ylim[2], 
+                        self$results$objFunc$model$output$dic,
+                        na.rm = TRUE
+                     )
+                  );
+               }
+               self$signal$plot(
+                  variableName = "dic",
+                  xaxt = "n",
+                  xlab = "",
+                  ylim = ylim,
+                  yaxt = "n",
+                  ylab = "",
+                  pch = self$format["dicObs", "pch"],
+                  col = self$format["dicObs", "col"],
+                  lwd = self$format["dicObs", "lwd"]
+               );
+               if(plotResults && plotDICResults) {
+                  lines(
+                     x = self$results$objFunc$model$output$time,
+                     y = self$results$objFunc$model$output$dic,
+                     lty = self$format["dicPred", "lty"],
+                     col = self$format["dicPred", "col"],
+                     lwd = self$format["dicPred", "lwd"]
+                  );
+               }
+            } else if (plotDICResults) {
                ylim <- c(
                   min(
-                     ylim[1], 
                      self$results$objFunc$model$output$dic,
                      na.rm = TRUE
                   ),
                   max(
-                     ylim[2], 
                      self$results$objFunc$model$output$dic,
                      na.rm = TRUE
                   )
                );
-            }
-            
-            # Plot the DIC observations
-            self$signal$plot(
-               variableName = "dic",
-               xaxt = "n",
-               ylim = ylim,
-               yaxt = "n",
-               ylab = "",
-               pch = self$format["dicObs", "pch"],
-               col = self$format["dicObs", "col"],
-               lwd = self$format["dicObs", "lwd"]
-            );
-            axis(
-               side = 4
-            );
-            mtext(
-               text = sprintf(
-                  "%s (%s)",
-                  "dic",
-                  self$signal$dataFrame$metaColumns["dic",]$units
-               ),
-               side = 4,
-               line = 2.5,
-               cex = 0.7,
-               col = self$format["dicObs", "col"]
-            );
-            if (plotResults & !is.null(self$results$objFunc$model$output$pCO2)) {
-               lines(
+               plot(
                   x = self$results$objFunc$model$output$time,
                   y = self$results$objFunc$model$output$dic,
+                  type = "l",
+                  xaxt = "n",
+                  xlab = "",
+                  ylim = ylim,
+                  yaxt = "n",
+                  ylab = "",
                   lty = self$format["dicPred", "lty"],
                   col = self$format["dicPred", "col"],
                   lwd = self$format["dicPred", "lwd"]
                );
-            }         
-            
+            }
+            if(plotDICSignal || plotDICResults) {
+               axis(
+                  side = 4
+               );
+               mtext(
+                  text = bquote(.("[DIC] (")*mu*mol~L^-1*.(")")),
+                  side = 4,
+                  line = 2.5,
+                  cex = 0.7,
+                  col = self$format["dicObs", "col"]
+               );
+            }
+
          }
          
          # Reset the axes scaling for PAR reference
          par(new = TRUE);
-         self$signal$plot(
-            variableName = "par",
-            type = "l",
-            lty = self$format["par", "lty"],
-            col = self$format["par", "col"],
-            lwd = self$format["par", "lwd"],
-            yaxt = "n",
-            ylab = "",
-            xaxt = "n",
-            xlab = ""
-         );
+         
+         if(plotSignal) {
+            self$signal$plot(
+               variableName = "par",
+               type = "l",
+               lty = self$format["par", "lty"],
+               col = self$format["par", "col"],
+               lwd = self$format["par", "lwd"],
+               yaxt = "n",
+               ylab = "",
+               xaxt = "n",
+               xlab = "",
+               ylim = c(
+                  max(self$signal$getVariable("par")),
+                  min(self$signal$getVariable("par"))
+               )
+            );
+         } else {
+            plot(
+               x = self$results$objFunc$model$output$time,
+               y = self$results$objFunc$model$par,
+               type = "l",
+               lty = self$format["par", "lty"],
+               col = self$format["par", "col"],
+               lwd = self$format["par", "lwd"],
+               yaxt = "n",
+               ylab = "",
+               xaxt = "n",
+               xlab = "",
+               ylim = c(
+                  max(self$results$objFunc$model$par),
+                  min(self$results$objFunc$model$par)
+               )
+            );
+         }
          
          # Plot temperature on a new plot
-         self$signal$plot(
-            variableName = "temp",
-            pch = self$format["temp", "pch"],
-            col = self$format["temp", "col"],
-            lwd = self$format["temp", "lwd"],
-            xaxt = "n"
-         );
+         if(plotSignal) {
+            self$signal$plot(
+               variableName = "temp",
+               pch = self$format["temp", "pch"],
+               col = self$format["temp", "col"],
+               lwd = self$format["temp", "lwd"],
+               xaxt = "n"
+            );
+         } else {
+            plot(
+               x = self$results$objFunc$model$output$time,
+               y = self$results$objFunc$model$temp,
+               ylab = "temp (deg C)",
+               pch = self$format["temp", "pch"],
+               col = self$format["temp", "col"],
+               lwd = self$format["temp", "lwd"],
+               xaxt = "n",
+               xlab = "time"
+            );
+         }
          axis.POSIXct(
             side = 1,
             at = seq(
@@ -613,7 +752,7 @@ OneStationMetabPlotter <- R6Class(
                text = bquote(paste(
                   .(sprintf(
                      fmt = "ER = %1.2e",
-                     self$results$objFunc$params[2]
+                     self$results$objFunc$model$dailyER
                   )),
                   ~mu*mol~L^-1~d^-1
                )),
@@ -627,7 +766,7 @@ OneStationMetabPlotter <- R6Class(
                   k[600],
                   .(sprintf(
                      fmt = " = %1.2e",
-                     self$results$objFunc$params[3]
+                     self$results$objFunc$model$k600
                   )),
                   ~d^-1
                )),
@@ -640,26 +779,47 @@ OneStationMetabPlotter <- R6Class(
          
          # Reset axes scaling for PAR
          par(new = TRUE);
+         
          # Plot PAR on the temperature plot
-         self$signal$plot(
-            variableName = "par",
-            type = "l",
-            lty = self$format["par", "lty"],
-            col = self$format["par", "col"],
-            lwd = self$format["par", "lwd"],
-            yaxt = "n",
-            ylab = "",
-            xaxt = "n",
-            xlab = ""
-         );
+         if(plotSignal) {
+            self$signal$plot(
+               variableName = "par",
+               type = "l",
+               lty = self$format["par", "lty"],
+               col = self$format["par", "col"],
+               lwd = self$format["par", "lwd"],
+               yaxt = "n",
+               ylab = "",
+               xaxt = "n",
+               xlab = "",
+               ylim = c(
+                  max(self$signal$getVariable("par")),
+                  min(self$signal$getVariable("par"))
+               )
+            );
+         } else {
+            plot(
+               x = self$results$objFunc$model$output$time,
+               y = self$results$objFunc$model$par,
+               type = "l",
+               lty = self$format["par", "lty"],
+               col = self$format["par", "col"],
+               lwd = self$format["par", "lwd"],
+               yaxt = "n",
+               ylab = "",
+               xaxt = "n",
+               xlab = "",
+               ylim = c(
+                  max(self$results$objFunc$model$par),
+                  min(self$results$objFunc$model$par)
+               )
+            );
+         }
          axis(
             side = 4
          );
          mtext(
-            text = sprintf(
-               "par (%s)",
-               self$signal$dataFrame$metaColumns["par",]$units
-            ),
+            text = "PAR (relative units)",
             side = 4,
             line = 2.5,
             cex = 0.7,

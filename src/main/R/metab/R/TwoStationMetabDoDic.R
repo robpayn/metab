@@ -22,6 +22,28 @@ TwoStationMetabDoDic <- R6Class(
    inherit =TwoStationMetabDo,
    public = list(
       
+      #' @field ratioDicCfix
+      #'    Ratio of carbon atoms in DIC consumed relative to carbon atoms fixed.
+      #'    Defaults to 1.
+      ratioDicCfix = NULL,
+      
+      #' @field dailyGPPDIC
+      #'   Model parameter for daily gross primary production
+      #'   based on C atoms in DIC consumed.
+      #'   Units of micromoles per liter per day.
+      dailyGPPDIC = NULL,
+      
+      #' @field ratioDicCresp
+      #'    Ratio of carbon atoms in DIC produced relative to carbon atoms respired.
+      #'    Defaults to 1.
+      ratioDicCresp = NULL,
+      
+      #' @field dailyERDIC
+      #'   Model parameter for daily aerobic ecosystem respiration
+      #'   based on C atoms in DIC consumed.
+      #'   Units of micromoles per liter per day.
+      dailyERDIC = NULL,
+      
       #' @field upstreamDIC
       #'   Upstream DIC concentration
       upstreamDIC = NULL, 
@@ -66,20 +88,9 @@ TwoStationMetabDoDic <- R6Class(
       #'   Acid neutralizing capacity of the water
       alkalinity = NULL,
       
-      #' @field RQ
-      #'   Respiratory quotient for DIC change relative to DO change
-      #'   caused by ecosystem respiration
-      RQ = NULL, 
-      
-      #' @field PQ
-      #'   Photosynthetic quotient for DIC change relative to DO change
-      #'   caused by gross primary production
-      PQ = NULL,
-      
-      #' @field kQ
-      #'   Gas exchange quotient for DIC change relative to DO change
-      #'   caused by gas exchange with the air
-      kQ = NULL,
+      #' @field kSchmidtFuncCO2
+      #'   Function to use to adjust carbon dioxide gas exchange for temperature
+      kSchmidtFuncCO2 = NULL,
       
       #' @field maxDIC
       #'   Maximum DIC to allow in optimization
@@ -99,6 +110,12 @@ TwoStationMetabDoDic <- R6Class(
       #'    passed generically to the constructor for the superclass \code{TwoStationMetabDo}. 
       #'    See documentation for the constructor of class \code{\link{TwoStationMetabDo}} for a description
       #'    of these arguments.
+      #' @param ratioDicCfix
+      #'    Ratio of carbon atoms in DIC consumed relative to carbon atoms fixed.
+      #'    Defaults to -1.
+      #' @param ratioDicCresp
+      #'    Ratio of carbon atoms in DIC produced relative to carbon atoms respired.
+      #'    Defaults to 1.
       #' @param upstreamDIC 
       #'    upstream DIC concentration in micromoles per liter
       #'    (numerical vector the same length as the upstream time vector)
@@ -113,15 +130,10 @@ TwoStationMetabDoDic <- R6Class(
       #' @param alkalinity 
       #'    alkalinity of stream water
       #'    (numerical vector)
-      #' @param RQ 
-      #'    Respiratory quotient
-      #'    (single value numerical vector, default value is 0.85)
-      #' @param PQ 
-      #'    Photosynthetic quotient
-      #'    (single value numerical vector, default value is 1.22)
-      #' @param kQ
-      #'    Gas exchange quotient
-      #'    (single value numerical vector, default value is 0.915)
+      #' @param kSchmidtFuncCO2
+      #'    Option to change the function used for calculating the carbon dioxide gas exchange
+      #'    rate from the gas exchange parameter normalized to a Schmidt number.
+      #'    Defaults to \code{\link{kSchmidtCO2}}
       #' @param maxDIC
       #'    Maximum DIC to allow in optimization.
       #'    Defaults to 1e6.
@@ -129,17 +141,22 @@ TwoStationMetabDoDic <- R6Class(
       initialize = function
       (
          ..., 
+         ratioDicCfix = -1.0,
+         ratioDicCresp = 1.0,
          upstreamDIC = NULL,
          upstreampCO2 = NULL,
          pCO2air, 
          alkalinity,
-         RQ = 0.85, 
-         PQ = 1.22,
-         kQ = 0.915,
+         kSchmidtFuncCO2 = kSchmidtCO2,
          maxDIC = 1e6
       ) 
       {
+         # Call the super class constructor
          super$initialize(...);
+
+         # Assign attributes
+         self$ratioDicCfix <- ratioDicCfix;
+         self$ratioDicCresp <- ratioDicCresp;
          self$alkalinity <- alkalinity;
          self$carbonateEq <- CarbonateEq$new(tempC = self$upstreamTemp[1]);
          self$pCO2air <- pCO2air;
@@ -199,9 +216,7 @@ TwoStationMetabDoDic <- R6Class(
                totalAlk = self$alkalinity * 1e-6
             )$concDIC * 1e6;
          }
-         self$RQ <- RQ;
-         self$PQ <- PQ;
-         self$kQ <- kQ;
+         self$kSchmidtFuncCO2 <- kSchmidtFuncCO2;
          self$maxDIC <- maxDIC;
       },
       
@@ -228,14 +243,22 @@ TwoStationMetabDoDic <- R6Class(
          # Run the superclass one station metabolism model for DO
          super$run();
          
+         # Set the effect of metabolism on DIC
+         self$dailyGPPDIC <- self$dailyGPP * self$ratioDicCfix;
+         self$dailyERDIC <- self$dailyER * self$ratioDicCresp;
+         
          # Set up the data frame that will be returned
          dicPredLength <- length(self$downstreamTime);
          self$output <- data.frame(
             self$output, 
             co2Production = 
-               -self$output$doConsumption * self$RQ,
+               (self$output$doConsumption / self$ratioDoCresp) * self$ratioDicCresp,
             co2Consumption = 
-               -self$output$doProduction * self$PQ,
+               (self$output$doProduction / self$ratioDoCfix) * self$ratioDicCfix,
+            kCO2 = 0.5 * (
+               self$kSchmidtFuncCO2(self$upstreamTemp, self$k600) + 
+               self$kSchmidtFuncCO2(self$downstreamTemp, self$k600)
+            ),
             co2Equilibration = numeric(length = dicPredLength),
             pH = numeric(length = dicPredLength),
             pCO2 = numeric(length = dicPredLength),
@@ -254,9 +277,10 @@ TwoStationMetabDoDic <- R6Class(
             # the DIC change over reach transport. The RHS is the
             # deterministic terms of the equation that are independent
             # of the downstream pCO2 measurements.
-            kCO2 <- self$output$k[i] * self$kQ;
-            self$output$co2Equilibration[i] <- self$output$residenceTime[i] * 
-               kCO2 * 0.5 * (upstreamCO2Deficit + self$downstreamCO2Sat[i]);
+            self$output$co2Equilibration[i] <- 
+               self$output$residenceTime[i] * 
+               self$output$kCO2[i] * 
+               0.5 * (upstreamCO2Deficit + self$downstreamCO2Sat[i]);
             target <- 
                self$upstreamDIC[i] +
                self$output$co2Production[i] + 
@@ -279,7 +303,7 @@ TwoStationMetabDoDic <- R6Class(
                },
                alkalinity = self$alkalinity * 1e-6,
                kH = self$downstreamkH[i],
-               kCO2 = kCO2,
+               kCO2 = self$output$kCO2[i],
                dt = self$output$residenceTime[i],
                target = target,
                lower = 0,

@@ -25,6 +25,16 @@ OneStationMetabMLE <- R6Class(
       #'   The intial parameter values to use for the MLE algorithm
       initParams = NULL,
       
+      #' @field parameterTranslatorGenerator
+      #'   The translator used to convert the parameters provided into
+      #'   model input
+      parameterTranslatorGenerator = NULL,
+      
+      #' @field isEstimated
+      #'   A vector of logical values indicating which parameters
+      #'   to include in the estimation.
+      isEstimated = NULL,
+      
       #' @field staticAirPressure
       #'   The air pressure.
       staticAirPressure = NULL,
@@ -62,6 +72,13 @@ OneStationMetabMLE <- R6Class(
       #'   Arguments needed by the constructor of the super class
       #' @param initParams
       #'   The intial parameter values to use for the MLE algorithm
+      #' @param parameterTranslatorGenerator
+      #'   The R6 class generator for the translator used to convert the parameters 
+      #'   provided into model input.
+      #'   Default value is the R6 class generator ParameterTranslatorMetab.
+      #' @param isEstimated
+      #'   A vector of logical values indicating which parameters
+      #'   to include in the estimation.
       #' @param sdLikelihood
       #'   The standard deviations used to calculate likelihood
       #' @param useDO
@@ -90,6 +107,8 @@ OneStationMetabMLE <- R6Class(
       (
          ...,
          initParams,
+         parameterTranslatorGenerator = ParameterTranslatorMetab,
+         isEstimated = c(TRUE, TRUE, TRUE),
          sdLikelihood,
          useDO = TRUE,
          usepCO2 = FALSE,
@@ -100,7 +119,10 @@ OneStationMetabMLE <- R6Class(
       )
       {
          super$initialize(...);
+         
          self$initParams <- initParams;
+         self$parameterTranslatorGenerator <- parameterTranslatorGenerator;
+         self$isEstimated <- isEstimated;
          self$sdLikelihood <- sdLikelihood;
          self$useDO <- useDO;
          self$usepCO2 <- usepCO2;
@@ -212,35 +234,34 @@ OneStationMetabMLE <- R6Class(
          } else {
             stop("Cannot perform MLE without at least one observation variable.");
          }
+         
          objFunc <- inferno::LogLikelihood$new(
             simulator = inferno::Simulator$new(
                model = model,
-               parameterTranslator = ParameterTranslatorMetab$new(model),
+               parameterTranslator = self$parameterTranslatorGenerator$new(
+                  model = model,
+                  isEstimated = self$isEstimated
+               ),
                predictionExtractor = predictionExtractor
             ),
             observation = observation,
             sd = self$sdLikelihood,
             negate = TRUE
          );
+         
          if (is.null(prevResults)) {
-            par <- c(
-               self$initParams[1],
-               self$initParams[2],
-               self$initParams[3]
-            );
+            par <- self$initParams[self$isEstimated];
          } else {
-            par <- c(
-               prevResults$optimr$par[1],
-               prevResults$optimr$par[2],
-               prevResults$optimr$par[3]
-            );
+            par <- prevResults$optimr$par;
          }
+         
          optimr <- optim(
             par = par,
             fn = objFunc$propose
          );
          objFunc$propose(optimr$par);
          results <- list(objFunc = objFunc, optimr = optimr);
+         
          saveRDS(
             results, 
             file = sprintf(

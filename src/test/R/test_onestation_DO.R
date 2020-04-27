@@ -1,31 +1,19 @@
 rm(list = ls());
+library(disco);
 library(inferno);
 library(metab);
 
 # Read the data file that is providing sample PAR
 # and temperature data
 
-doData <- read.table(
-   file = "./8-4-17_big_sky_doData.csv",
-   header = FALSE,
-   sep = ",",
-   skip = 2,
-   row.names = NULL,
-   stringsAsFactors = FALSE
-   );
-doData <- doData[complete.cases(doData),];
-attributes(doData)$names[1] <- "time";
-attributes(doData)$names[2] <- "temp";
-attributes(doData)$names[3] <- "dissolvedOxygen";
-attributes(doData)$names[4] <- "dissolvedOxygenSat";
-attributes(doData)$names[9] <- "LUX";
-attributes(doData)$names[7] <- "GMT";
-par <- doData$LUX * 0.0185;
+signal <- readRDS(
+   file = "./data/onestation/downstream/dates/2014-09-12/signal.RData"
+);
 
 # Set known simluated stream environment
 
 knownGPP <- 150;
-knownER <- -150;
+knownER <- 150;
 knownk600 <- 12;
 
 knownsdDO <- 2;
@@ -36,11 +24,12 @@ model <- OneStationMetabDo$new(
    dailyGPP = knownGPP,
    dailyER = knownER,
    k600 = knownk600,
-   airPressure = 609,
-   time = doData$time,
-   initialDO = 225,
-   temp = doData$temp,
-   par = par
+   airPressure = 0.84,
+   time = signal$time,
+   initialDO = signal$getVariable("do"),
+   temp = signal$getVariable("temp"),
+   par = signal$getVariable("par"),
+   stdAirPressure = 1
 );
 
 # Define the objective function to use in the optimization
@@ -75,9 +64,30 @@ optimr <- optim(
 
 objFunc$propose(params = optimr$par);
 
+results <- list(objFunc = objFunc, optimr = optimr);
+saveRDS(
+   results, 
+   file = "./results.RData"
+);
+
 # Plot the results
 
-windows(width = 10, height = 8);
-model$plot(
-   obsDO = objFunc$observation$do
-)
+plotter <- OneStationMetabPlotter$new(
+   signal = NULL,
+   # signal = signal,
+   # outputPath = NULL,
+   outputPath = ".",
+   fileName = "test_onestation_DO_results.pdf",
+   timeTicks = 14,
+   mfrow = c(2,2)
+);
+
+plotter$open(path = ".");
+plotter$summarize(
+   label = "Test results",
+   timeBounds = as.POSIXct(c(
+      "2014-09-12 23:00:00",
+      "2014-09-14 01:00:00"
+   ))
+);
+plotter$close()

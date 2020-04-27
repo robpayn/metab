@@ -7,8 +7,10 @@ class MetabOneStationDO {
 public:
    MetabOneStationDO(double x_) : x(x_) {}
    
-   double add(double y) {
-      return x + y;
+   DataFrame add(double y) {
+      NumericVector blah = NumericVector::create(x + y);
+      DataFrame answer = DataFrame::create(Named("a") = blah);
+      return answer;
    }
    
    double x;

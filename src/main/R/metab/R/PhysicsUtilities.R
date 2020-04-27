@@ -34,7 +34,7 @@ densityWater <- function(temp)
    );
 }
 
-# Gas exchange temperature correction function ####
+# DO gas exchange temperature correction function ####
 
 #' @export
 #' 
@@ -43,8 +43,7 @@ densityWater <- function(temp)
 #' 
 #' @description 
 #'    Adjusts a dissolved oxygen exchange velocity or rate based on temperature
-#'    and the provided dissolved oxygen exchange velocity or rate at a 
-#'    Schmidt number of 600.
+#'    and the provided dissolved gas exchange velocity or rate at a Schmidt number of 600.
 #'    The Schmidt number for oxygen calculated based on an empirical function of 
 #'    temperature accoring to Wanninkhof (1992 Journal of Geophysical Research).
 #'    The gas exchange rate at a Schmidt number of 600 is then coverted to the
@@ -61,15 +60,53 @@ densityWater <- function(temp)
 #'    
 #' @return 
 #'    Numerical vector of temperature corrected gas exchange rates 
-#'    in same units as k600 argument
+#'    for oxygen in same units as k600 argument
 #'    
-kSchmidt <- function(temp, k600)
+kSchmidtDO <- function(temp, k600)
 {
    schmidt <- 
       1800.6 -
       120.1 * temp +
       3.7818 * temp^2 -
       0.047608 * temp^3;
+   return (k600 * (schmidt / 600)^-0.5);
+}
+
+# Dissolved carbon dioxide gas exchange temperature correction function ####
+
+#' @export
+#' 
+#' @title
+#'    Adjusts air-freshwater dissolved carbon dioxide exchange for temperature
+#' 
+#' @description 
+#'    Adjusts a dissolved carbon dioxide exchange velocity or rate based on temperature
+#'    and the provided dissolved gas exchange velocity or rate at a Schmidt number of 600.
+#'    The Schmidt number for carbon dioxide is calculated based on an empirical function of 
+#'    temperature accoring to Raymond et al. (2012 Limnology and Oceanography: Fluids and Environments).
+#'    The exchange rate at a Schmidt number of 600 is then coverted to the
+#'    gas exchange rate at the Schmidt number estimated from the provided temperature
+#'    according to Jahne et al. (1987, Journal of Geophysical Research).
+#'    
+#' @param temp 
+#'    Water temperature in degrees Celsius
+#'    (numerical vector)
+#' @param k600 
+#'    Gas exchange rate (per time) or velocity (length per time)
+#'    at a Schmidt number of 600
+#'    (numerical vector)
+#'    
+#' @return 
+#'    Numerical vector of temperature corrected gas exchange rates 
+#'    for carbon dioxide in same units as k600 argument
+#'    
+kSchmidtCO2 <- function(temp, k600)
+{
+   schmidt <- 
+      1742 -
+      91.24 * temp +
+      2.208 * temp^2 -
+      0.0219 * temp^3;
    return (k600 * (schmidt / 600)^-0.5);
 }
 

@@ -27,11 +27,36 @@ OneStationMetabDo <- R6Class(
       
       #' @field dailyGPP
       #'   Model parameter for daily gross primary production
+      #'   based on C atoms fixed.
+      #'   Units of micromoles per liter per day.
       dailyGPP = NULL, 
       
+      #' @field ratioDoCfix
+      #'    Ratio of DO molecules produced relative to carbon atoms fixed.
+      ratioDoCfix = NULL,
+      
+      #' @field dailyGPPDO
+      #'   Model parameter for daily gross primary production
+      #'   based on oxygen molecules produced.
+      #'   Units of micromoles per liter per day.
+      dailyGPPDO = NULL,
+      
       #' @field dailyER
-      #'   Model parameter for daily ecosystem respiration
+      #'   Model parameter for daily aerobic ecosystem respiration
+      #'   based on carbon atoms respired.
+      #'   Units of micromoles per liter per day.
       dailyER = NULL, 
+      
+      #' @field ratioDoCresp
+      #'    Ratio of DO molecules consumed relative to carbon atoms respired.
+      #'    Defaults to 1.
+      ratioDoCresp = NULL,
+      
+      #' @field dailyERDO
+      #'   Model parameter for daily aerobic ecosystem respiration
+      #'   based on oxygen molecules consumed.
+      #'   Units of micromoles per liter per day.
+      dailyERDO = NULL, 
       
       #' @field k600
       #'   Model parameter for the gas exchange rate
@@ -70,7 +95,7 @@ OneStationMetabDo <- R6Class(
       doSatCalculator = NULL,
       
       #' @field kSchmidtFunc
-      #'   Function to use to adjust gas exchange for temperature
+      #'   Function to use to adjust oxygen gas exchange for temperature
       kSchmidtFunc = NULL,
       
       # Method OneStationMetabDo$new ####
@@ -79,11 +104,19 @@ OneStationMetabDo <- R6Class(
       #'   Constructs a new instance of the class
       #' 
       #' @param dailyGPP 
-      #'    Daily average influence of gross primary production on oxygen concentration.
-      #'    Units are micomolality per day.
-      #' @param dailyER 
-      #'    Daily average influence of ecosystem respiration on oxygen.
-      #'    Units are micomolality per day.
+      #'    Model parameter for daily gross primary production
+      #'    based on C atoms fixed.
+      #'    Units of micromoles per liter per day.
+      #' @param ratioDoCfix
+      #'    Ratio of DO molecules produced relative to carbon atoms fixed.
+      #'    Defaults to 1.
+      #' @param dailyER
+      #'    Model parameter for daily aerobic ecosystem respiration
+      #'    based on carbon atoms respired.
+      #'    Units of micromoles per liter per day.
+      #' @param ratioDoCresp
+      #'    Ratio of DO molecules consumed relative to carbon atoms respired.
+      #'    Defaults to -1.
       #' @param k600 
       #'    Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
       #'    depending on saturation deficit. Units are per day.
@@ -124,12 +157,14 @@ OneStationMetabDo <- R6Class(
       #' @param kSchmidtFunc
       #'    Option to change the function used for calculating the gas exchange
       #'    rate from the gas exchange parameter normalized to a Schmidt number.
-      #'    Defaults to \code{\link{kSchmidt}}
+      #'    Defaults to \code{\link{kSchmidtDO}}
       #'    
       initialize = function
       (
          dailyGPP, 
+         ratioDoCfix = 1.0,
          dailyER, 
+         ratioDoCresp = -1.0,
          k600, 
          airPressure, 
          initialDO, 
@@ -141,13 +176,15 @@ OneStationMetabDo <- R6Class(
          doSatCalculator = DoSatCalculator$new(
             stdAirPressure = stdAirPressure
          ),
-         kSchmidtFunc = kSchmidt
+         kSchmidtFunc = kSchmidtDO
       ) 
       {
          # Assign attribute values from arguments
          
-         self$dailyGPP <- dailyGPP; 
+         self$dailyGPP <- dailyGPP;
+         self$ratioDoCfix <- ratioDoCfix;
          self$dailyER <- dailyER;
+         self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
          self$airPressure <- airPressure;
          self$initialDO <- initialDO;
@@ -203,18 +240,11 @@ OneStationMetabDo <- R6Class(
       #'    
       run = function() 
       {
-         # Calculate the saturated oxygen concentration for the 
-         # provided temperatures and air pressure
+         # Caclulate the effect of metabolism on DO based
+         # on stoichiometric efficiencies
          
-         doSat <- self$doSatCalculator$calculate(
-            temp = self$temp,
-            airPressure = self$airPressure
-         );
-         
-         # Calculate the temperature adjusted gas exchange rate from 
-         # the k600 rate at a Schmidt number of 600
-         
-         k <- self$kSchmidtFunc(self$temp, self$k600);
+         self$dailyGPPDO <- self$dailyGPP * self$ratioDoCfix;
+         self$dailyERDO <- self$dailyER * self$ratioDoCresp;
          
          # Specify length to use for vectors and the data frame based 
          # on the length of time vector
@@ -229,11 +259,16 @@ OneStationMetabDo <- R6Class(
                self$time * 86400, 
                origin = as.POSIXct("1970-01-01", tz = "GMT")
             ),
-            do = numeric(doPredLength),
-            doSat = doSat,
-            doProduction = numeric(doPredLength),
-            doConsumption = numeric(doPredLength),
-            k = k,
+            do = rep(as.numeric(NA), doPredLength),
+            doSat = self$doSatCalculator$calculate(
+               temp = self$temp,
+               airPressure = self$airPressure
+            ),
+            doProduction = self$dailyGPPDO * 
+               ((self$par * self$dt) / self$parTotal),
+            doConsumption = self$dailyERDO * 
+               self$dt,
+            k = self$kSchmidtFunc(self$temp, self$k600),
             temp = self$temp,
             dt = self$dt
          );
@@ -242,20 +277,14 @@ OneStationMetabDo <- R6Class(
          
          self$output$do[1] <- self$initialDO[1];
          
-         # Calculate the DO production and consumption for
-         # each time step
-         
-         self$output$doProduction <- self$dailyGPP * 
-            ((self$par * self$dt) / self$parTotal); 
-         self$output$doConsumption <- self$dt * self$dailyER;
-         
          # Iterates over the time steps to model the change in dissolved
          # oxygen over time (one station method)
          for (i in 2:doPredLength) {
             self$output$do[i] <- self$output$do[i - 1] +
                self$output$doProduction[i - 1] +
                self$output$doConsumption[i - 1] + 
-               self$dt[i - 1] * k[i - 1] * (doSat[i - 1] - self$output$do[i - 1]);
+               self$dt[i - 1] * self$output$k[i - 1] * 
+                  (self$output$doSat[i - 1] - self$output$do[i - 1]);
          }
          
          return(self$output);

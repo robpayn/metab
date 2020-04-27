@@ -22,6 +22,29 @@ ParameterTranslatorMetab <- R6Class(
    inherit = inferno::ParameterTranslator,
    public = list(
       
+      #' @field isEstimated
+      #'   A vector of logical values indicating which parameters
+      #'   to include in the estimation.
+      isEstimated = NULL,
+      
+      # Method ParameterTranslatorMetab$new ####
+      #
+      #' @description 
+      #'   Constructs a new instance of the class
+      #' 
+      #' @param ...
+      #'   Arguments to pass to constructor of super class
+      #' 
+      #' @param isEstimated
+      #'   A vector of logical values indicating which parameters
+      #'   to include in the estimation.
+      #'  
+      initialize = function(..., isEstimated = c(TRUE, TRUE, TRUE))
+      {
+         super$initialize(...);
+         self$isEstimated <- isEstimated;
+      },
+       
       # Method ParameterTranslatorMetab$translate ####
       #
       #' @description 
@@ -40,9 +63,15 @@ ParameterTranslatorMetab <- R6Class(
          params
       ) 
       {
-         self$model$dailyGPP <- params[1];
-         self$model$dailyER <- params[2];
-         self$model$k600 <- params[3];
+         if (self$isEstimated[1]) {
+            self$model$dailyGPP = params[1];
+         }
+         if (self$isEstimated[2]) {
+            self$model$dailyER = params[2];
+         }
+         if (self$isEstimated[3]) {
+            self$model$k600 <- params[3];
+         }
       }
    )
 );

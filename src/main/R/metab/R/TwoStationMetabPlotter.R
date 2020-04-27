@@ -21,6 +21,12 @@ TwoStationMetabPlotter <- R6Class(
       #'   Number of ticks on the time axis
       timeTicks = NULL,
       
+      #' @field plotDelta
+      #'   Logical value indicating if the change in concentration
+      #'   should be plotted instead of the upstream/downstream
+      #'   concentrations
+      plotDelta = NULL,
+      
       #' @field resultFile
       #'   Base file name for the results.
       resultFile = NULL,
@@ -47,6 +53,10 @@ TwoStationMetabPlotter <- R6Class(
       #'   Arguments passed to the constructor of the super class
       #' @param timeTicks
       #'   Number of ticks on the time axis
+      #' @param plotDelta
+      #'   Logical value indicating if the change in concentration
+      #'   should be plotted instead of the upstream/downstream
+      #'   concentrations
       #' @param resultFile
       #'   Base file name for the results.
       #'   Defaults to "results".
@@ -90,7 +100,8 @@ TwoStationMetabPlotter <- R6Class(
       initialize = function
       (
          ..., 
-         timeTicks, 
+         timeTicks,
+         plotDelta = FALSE,
          resultFile = "results",
          subTitle = "",
          format.doObsUp = list(
@@ -174,6 +185,7 @@ TwoStationMetabPlotter <- R6Class(
       {
          super$initialize(...);
          self$timeTicks <- timeTicks;
+         self$plotDelta <- plotDelta;
          self$resultFile <- resultFile;
          self$subTitle <- subTitle;
          
@@ -204,10 +216,7 @@ TwoStationMetabPlotter <- R6Class(
       #' @return 
       #'   No defined return value
       #'   
-      open = function
-      (
-         path
-      )
+      open = function(path)
       {
          super$open(path);
          
@@ -228,50 +237,91 @@ TwoStationMetabPlotter <- R6Class(
             labels = "Left panel legend:",
             font = 2
          );
-         legend(
-            x = "center",
-            bty = 'n',
-            legend = c(
-               self$format["doObsUp", "name"],
-               self$format["doObsDown", "name"], 
-               self$format["doSatDown", "name"], 
-               self$format["doPred", "name"], 
-               self$format["parUp", "name"],
-               self$format["parDown", "name"]
-            ),
-            lty = c(
-               self$format["doObsUp", "lty"],
-               self$format["doObsDown", "lty"], 
-               self$format["doSatDown", "lty"], 
-               self$format["doPred", "lty"], 
-               self$format["parUp", "lty"],
-               self$format["parDown", "lty"]
-            ),
-            lwd = c(
-               self$format["doObsUp", "lwd"],
-               self$format["doObsDown", "lwd"], 
-               self$format["doSatDown", "lwd"], 
-               self$format["doPred", "lwd"], 
-               self$format["parUp", "lwd"],
-               self$format["parDown", "lwd"]
-            ),
-            pch = c(
-               self$format["doObsUp", "pch"],
-               self$format["doObsDown", "pch"], 
-               self$format["doSatDown", "pch"], 
-               self$format["doPred", "pch"], 
-               self$format["parUp", "pch"],
-               self$format["parDown", "pch"]
-            ),
-            col = c(
-               self$format["doObsUp", "col"],
-               self$format["doObsDown", "col"], 
-               self$format["doSatDown", "col"], 
-               self$format["doPred", "col"], 
-               self$format["parUp", "col"],
-               self$format["parDown", "col"]
-            )
-         );
+
+         if(self$plotDelta) {
+            legend(
+               x = "center",
+               bty = 'n',
+               legend = sapply(
+                  c(
+                     bquote(Delta*DO~observed), 
+                     bquote(Delta*DO~modeled),
+                     bquote(.(self$format["parUp", "name"])),
+                     bquote(.(self$format["parDown", "name"]))
+                  ), 
+                  as.expression
+               ),
+               lty = c(
+                  self$format["doObsDown", "lty"], 
+                  self$format["doPred", "lty"], 
+                  self$format["parUp", "lty"],
+                  self$format["parDown", "lty"]
+               ),
+               lwd = c(
+                  self$format["doObsDown", "lwd"], 
+                  self$format["doPred", "lwd"], 
+                  self$format["parUp", "lwd"],
+                  self$format["parDown", "lwd"]
+               ),
+               pch = c(
+                  self$format["doObsDown", "pch"], 
+                  self$format["doPred", "pch"], 
+                  self$format["parUp", "pch"],
+                  self$format["parDown", "pch"]
+               ),
+               col = c(
+                  self$format["doObsDown", "col"], 
+                  self$format["doPred", "col"], 
+                  self$format["parUp", "col"],
+                  self$format["parDown", "col"]
+               )
+            );
+         } else {
+            legend(
+               x = "center",
+               bty = 'n',
+               legend = c(
+                  self$format["doObsUp", "name"],
+                  self$format["doObsDown", "name"], 
+                  self$format["doSatDown", "name"], 
+                  self$format["doPred", "name"], 
+                  self$format["parUp", "name"],
+                  self$format["parDown", "name"]
+               ),
+               lty = c(
+                  self$format["doObsUp", "lty"],
+                  self$format["doObsDown", "lty"], 
+                  self$format["doSatDown", "lty"], 
+                  self$format["doPred", "lty"], 
+                  self$format["parUp", "lty"],
+                  self$format["parDown", "lty"]
+               ),
+               lwd = c(
+                  self$format["doObsUp", "lwd"],
+                  self$format["doObsDown", "lwd"], 
+                  self$format["doSatDown", "lwd"], 
+                  self$format["doPred", "lwd"], 
+                  self$format["parUp", "lwd"],
+                  self$format["parDown", "lwd"]
+               ),
+               pch = c(
+                  self$format["doObsUp", "pch"],
+                  self$format["doObsDown", "pch"], 
+                  self$format["doSatDown", "pch"], 
+                  self$format["doPred", "pch"], 
+                  self$format["parUp", "pch"],
+                  self$format["parDown", "pch"]
+               ),
+               col = c(
+                  self$format["doObsUp", "col"],
+                  self$format["doObsDown", "col"], 
+                  self$format["doSatDown", "col"], 
+                  self$format["doPred", "col"], 
+                  self$format["parUp", "col"],
+                  self$format["parDown", "col"]
+               )
+            );
+         }
          
          plot(
             x = NULL,
@@ -290,45 +340,86 @@ TwoStationMetabPlotter <- R6Class(
             labels = "Right panel legend:",
             font = 2
          )
-         legend(
-            x = "center", 
-            bty = 'n',
-            legend = c(
-               self$format["pCO2ObsUp", "name"],
-               self$format["pCO2ObsDown", "name"], 
-               self$format["pCO2Pred", "name"], 
-               self$format["tempUp", "name"],
-               self$format["tempDown", "name"]
-            ),
-            lty = c(
-               self$format["pCO2ObsUp", "lty"],
-               self$format["pCO2ObsDown", "lty"], 
-               self$format["pCO2Pred", "lty"], 
-               self$format["tempUp", "lty"],
-               self$format["tempDown", "lty"]
-            ),
-            lwd = c(
-               self$format["pCO2ObsUp", "lwd"],
-               self$format["pCO2ObsDown", "lwd"], 
-               self$format["pCO2Pred", "lwd"], 
-               self$format["tempUp", "lwd"],
-               self$format["tempDown", "lwd"]
-            ),
-            pch = c(
-               self$format["pCO2ObsUp", "pch"],
-               self$format["pCO2ObsDown", "pch"], 
-               self$format["pCO2Pred", "pch"], 
-               self$format["tempUp", "pch"],
-               self$format["tempDown", "pch"]
-            ),
-            col = c(
-               self$format["pCO2ObsUp", "col"],
-               self$format["pCO2ObsDown", "col"], 
-               self$format["pCO2Pred", "col"], 
-               self$format["tempUp", "col"],
-               self$format["tempDown", "col"]
-            )
-         );
+         
+         if(self$plotDelta) {
+            legend(
+               x = "center", 
+               bty = 'n',
+               legend = sapply(
+                  c(
+                     bquote(Delta*pCO[2]~observed), 
+                     bquote(Delta*pCO[2]~modeled),
+                     bquote(.(self$format["tempUp", "name"])),
+                     bquote(.(self$format["tempDown", "name"]))
+                  ),
+                  as.expression
+               ),
+               lty = c(
+                  self$format["pCO2ObsDown", "lty"], 
+                  self$format["pCO2Pred", "lty"], 
+                  self$format["tempUp", "lty"],
+                  self$format["tempDown", "lty"]
+               ),
+               lwd = c(
+                  self$format["pCO2ObsDown", "lwd"], 
+                  self$format["pCO2Pred", "lwd"], 
+                  self$format["tempUp", "lwd"],
+                  self$format["tempDown", "lwd"]
+               ),
+               pch = c(
+                  self$format["pCO2ObsDown", "pch"], 
+                  self$format["pCO2Pred", "pch"], 
+                  self$format["tempUp", "pch"],
+                  self$format["tempDown", "pch"]
+               ),
+               col = c(
+                  self$format["pCO2ObsDown", "col"], 
+                  self$format["pCO2Pred", "col"], 
+                  self$format["tempUp", "col"],
+                  self$format["tempDown", "col"]
+               )
+            );
+         } else {
+            legend(
+               x = "center", 
+               bty = 'n',
+               legend = c(
+                  self$format["pCO2ObsUp", "name"],
+                  self$format["pCO2ObsDown", "name"], 
+                  self$format["pCO2Pred", "name"], 
+                  self$format["tempUp", "name"],
+                  self$format["tempDown", "name"]
+               ),
+               lty = c(
+                  self$format["pCO2ObsUp", "lty"],
+                  self$format["pCO2ObsDown", "lty"], 
+                  self$format["pCO2Pred", "lty"], 
+                  self$format["tempUp", "lty"],
+                  self$format["tempDown", "lty"]
+               ),
+               lwd = c(
+                  self$format["pCO2ObsUp", "lwd"],
+                  self$format["pCO2ObsDown", "lwd"], 
+                  self$format["pCO2Pred", "lwd"], 
+                  self$format["tempUp", "lwd"],
+                  self$format["tempDown", "lwd"]
+               ),
+               pch = c(
+                  self$format["pCO2ObsUp", "pch"],
+                  self$format["pCO2ObsDown", "pch"], 
+                  self$format["pCO2Pred", "pch"], 
+                  self$format["tempUp", "pch"],
+                  self$format["tempDown", "pch"]
+               ),
+               col = c(
+                  self$format["pCO2ObsUp", "col"],
+                  self$format["pCO2ObsDown", "col"], 
+                  self$format["pCO2Pred", "col"], 
+                  self$format["tempUp", "col"],
+                  self$format["tempDown", "col"]
+               )
+            );
+         }
       },
       
       # Method TwoStationMetabPlotter$summarize ####
@@ -371,8 +462,14 @@ TwoStationMetabPlotter <- R6Class(
          
          doIn <- signalIn$getVariable("do");
          doOut <- signalOut$getVariable("do");
-         ymin <- min(doIn, doOut, na.rm = TRUE);
-         ymax <- max(doIn, doOut, na.rm = TRUE);
+         
+         if(self$plotDelta) {
+            ymin <- min(doOut - doIn, na.rm = TRUE);
+            ymax <- max(doOut - doIn, na.rm = TRUE);
+         } else {
+            ymin <- min(doIn, doOut, na.rm = TRUE);
+            ymax <- max(doIn, doOut, na.rm = TRUE);
+         }
          
          # Load results if plotted and alter y axis scale
          # accordingly for results
@@ -382,38 +479,80 @@ TwoStationMetabPlotter <- R6Class(
                self$outputPath,
                self$resultFile
             ));
-            ymin <- min(
-               ymin, 
-               self$results$objFunc$model$output$do,
-               self$results$objFunc$model$output$doSat,
-               na.rm = TRUE
-            );
-            ymax <- max(
-               ymax, 
-               self$results$objFunc$model$output$do,
-               self$results$objFunc$model$output$doSat,
-               na.rm = TRUE
-            );
+            if(self$plotDelta) {
+               ymin <- min(
+                  ymin, 
+                  self$results$objFunc$model$output$do - doIn,
+                  na.rm = TRUE
+               );
+               ymax <- max(
+                  ymax, 
+                  self$results$objFunc$model$output$do - doIn,
+                  na.rm = TRUE
+               );
+            } else {
+               ymin <- min(
+                  ymin, 
+                  self$results$objFunc$model$output$do,
+                  self$results$objFunc$model$output$doSat,
+                  na.rm = TRUE
+               );
+               ymax <- max(
+                  ymax, 
+                  self$results$objFunc$model$output$do,
+                  self$results$objFunc$model$output$doSat,
+                  na.rm = TRUE
+               );
+            }
          }
          
-         signalOut$plot(
-            variableName = "do",
-            pch = self$format["doObsDown", "pch"],
-            lwd = self$format["doObsDown", "lwd"],
-            col = self$format["doObsDown", "col"],
-            xaxt = "n",
-            xlab = "",
-            ylab = "",
-            xlim = timeBounds,
-            ylim = c(ymin, ymax)
-         );
-         mtext(
-            text = bquote(.("[DO] (")*mu*mol~L^-1*.(")")),
-            side = 2,
-            line = 2,
-            cex = 0.7,
-            col = self$format["doObsDown", "col"]
-         );
+         if(self$plotDelta) {
+            plot(
+               x = signalOut$time,
+               y = doOut - doIn,
+               pch = self$format["doObsDown", "pch"],
+               lwd = self$format["doObsDown", "lwd"],
+               col = self$format["doObsDown", "col"],
+               xaxt = "n",
+               xlab = "",
+               ylab = "",
+               xlim = timeBounds,
+               ylim = c(ymin, ymax)
+            );
+            mtext(
+               text = bquote(Delta*.("DO (")*mu*mol~L^-1*.(")")),
+               side = 2,
+               line = 2,
+               cex = 0.7,
+               col = self$format["doObsDown", "col"]
+            );
+         } else {
+            signalOut$plot(
+               variableName = "do",
+               pch = self$format["doObsDown", "pch"],
+               lwd = self$format["doObsDown", "lwd"],
+               col = self$format["doObsDown", "col"],
+               xaxt = "n",
+               xlab = "",
+               ylab = "",
+               xlim = timeBounds,
+               ylim = c(ymin, ymax)
+            );
+            points(
+               x = signalOut$time,
+               y = doIn,
+               pch = self$format["doObsUp", "pch"],
+               lwd = self$format["doObsUp", "lwd"],
+               col = self$format["doObsUp", "col"]
+            );
+            mtext(
+               text = bquote(.("[DO] (")*mu*mol~L^-1*.(")")),
+               side = 2,
+               line = 2,
+               cex = 0.7,
+               col = self$format["doObsDown", "col"]
+            );
+         }
          axis.POSIXct(
             side = 1,
             at = seq(
@@ -422,13 +561,6 @@ TwoStationMetabPlotter <- R6Class(
                length.out = self$timeTicks
             ),
             format = "%H:%M"
-         );
-         points(
-            x = signalOut$time,
-            y = doIn,
-            pch = self$format["doObsUp", "pch"],
-            lwd = self$format["doObsUp", "lwd"],
-            col = self$format["doObsUp", "col"]
          );
          mtext(
             side = 3,
@@ -440,25 +572,35 @@ TwoStationMetabPlotter <- R6Class(
          
          # Plot the best fit DO model if results are plotted
          if (plotResults) {
-            lines(
-               x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$downstreamDOSat,
-               lty = self$format["doSatDown", "lty"],
-               lwd = self$format["doSatDown", "lwd"],
-               col = self$format["doSatDown", "col"]
-            );
-            lines(
-               x = self$results$objFunc$model$output$time,
-               y = self$results$objFunc$model$output$do,
-               lty = self$format["doPred", "lty"],
-               lwd = self$format["doPred", "lwd"],
-               col = self$format["doPred", "col"]
-            );
+            if(self$plotDelta) {
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$output$do - doIn,
+                  lty = self$format["doPred", "lty"],
+                  lwd = self$format["doPred", "lwd"],
+                  col = self$format["doPred", "col"]
+               );
+            } else {
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$downstreamDOSat,
+                  lty = self$format["doSatDown", "lty"],
+                  lwd = self$format["doSatDown", "lwd"],
+                  col = self$format["doSatDown", "col"]
+               );
+               lines(
+                  x = self$results$objFunc$model$output$time,
+                  y = self$results$objFunc$model$output$do,
+                  lty = self$format["doPred", "lty"],
+                  lwd = self$format["doPred", "lwd"],
+                  col = self$format["doPred", "col"]
+               );
+            }
             mtext(
                text = bquote(paste(
                   .(sprintf(
                      fmt = "GPP = %1.2e",
-                     self$results$objFunc$params[1]
+                     self$results$objFunc$model$dailyGPP
                   )),
                   ~mu*mol~L^-1~d^-1
                )),
@@ -511,19 +653,59 @@ TwoStationMetabPlotter <- R6Class(
          
          pCO2In <- signalIn$getVariable("pCO2");
          pCO2Out <- signalOut$getVariable("pCO2");
-         ymin <- min(pCO2In, pCO2Out, na.rm = TRUE);
-         ymax <- max(pCO2In, pCO2Out, na.rm = TRUE);
-         signalOut$plot(
-            variableName = "pCO2",
-            pch = self$format["pCO2ObsDown", "pch"],
-            lwd = self$format["pCO2ObsDown", "lwd"],
-            col = self$format["pCO2ObsDown", "col"],
-            xaxt = "n",
-            xlab = "",
-            xlim = timeBounds,
-            ylim = c(ymin, ymax),
-            ylab = ""
-         );
+         
+         if(self$plotDelta) {
+            ymin <- min(pCO2Out - pCO2In, na.rm = TRUE);
+            ymax <- max(pCO2Out - pCO2In, na.rm = TRUE);
+            signalOut$plot(
+               x = signalOut$time,
+               y = pCO2Out - pCO2In,
+               pch = self$format["pCO2ObsDown", "pch"],
+               lwd = self$format["pCO2ObsDown", "lwd"],
+               col = self$format["pCO2ObsDown", "col"],
+               xaxt = "n",
+               xlab = "",
+               xlim = timeBounds,
+               ylim = c(ymin, ymax),
+               ylab = ""
+            );
+            mtext(
+               text = bquote(Delta*pCO[2]~.("(")*mu*atm*.(")")),
+               side = 2,
+               line = 2.5,
+               cex = 0.7,
+               col = self$format["pCO2ObsDown", "col"]
+            );
+         } else {
+            ymin <- min(pCO2In, pCO2Out, na.rm = TRUE);
+            ymax <- max(pCO2In, pCO2Out, na.rm = TRUE);
+            signalOut$plot(
+               variableName = "pCO2",
+               pch = self$format["pCO2ObsDown", "pch"],
+               lwd = self$format["pCO2ObsDown", "lwd"],
+               col = self$format["pCO2ObsDown", "col"],
+               xaxt = "n",
+               xlab = "",
+               xlim = timeBounds,
+               ylim = c(ymin, ymax),
+               ylab = ""
+            );
+            points(
+               x = signalOut$time,
+               y = pCO2In,
+               pch = self$format["pCO2ObsUp", "pch"],
+               lwd = self$format["pCO2ObsUp", "lwd"],
+               col = self$format["pCO2ObsUp", "col"]
+            );
+            mtext(
+               text = bquote(pCO[2]~.("(")*mu*atm*.(")")),
+               side = 2,
+               line = 2.5,
+               cex = 0.7,
+               col = self$format["pCO2ObsDown", "col"]
+            );
+         }
+         
          axis.POSIXct(
             side = 1,
             at = seq(
@@ -533,28 +715,32 @@ TwoStationMetabPlotter <- R6Class(
             ),
             format = "%H:%M"
          );
-         points(
-            x = signalOut$time,
-            y = pCO2In,
-            pch = self$format["pCO2ObsUp", "pch"],
-            lwd = self$format["pCO2ObsUp", "lwd"],
-            col = self$format["pCO2ObsUp", "col"]
-         );
+         
          if (plotResults) {
             if (!is.null(self$results$objFunc$model$output$pCO2)) {
-               lines(
-                  x = self$results$objFunc$model$output$time,
-                  y = self$results$objFunc$model$output$pCO2,
-                  lty = self$format["pCO2Pred", "lty"],
-                  lwd = self$format["pCO2Pred", "lwd"],
-                  col = self$format["pCO2Pred", "col"]
-               );
+               if(self$plotDelta) {
+                  lines(
+                     x = self$results$objFunc$model$output$time,
+                     y = self$results$objFunc$model$output$pCO2 - pCO2In,
+                     lty = self$format["pCO2Pred", "lty"],
+                     lwd = self$format["pCO2Pred", "lwd"],
+                     col = self$format["pCO2Pred", "col"]
+                  );
+               } else {
+                  lines(
+                     x = self$results$objFunc$model$output$time,
+                     y = self$results$objFunc$model$output$pCO2,
+                     lty = self$format["pCO2Pred", "lty"],
+                     lwd = self$format["pCO2Pred", "lwd"],
+                     col = self$format["pCO2Pred", "col"]
+                  );
+               }
             }
             mtext(
                text = bquote(paste(
                   .(sprintf(
                      fmt = "ER = %1.2e",
-                     self$results$objFunc$params[2]
+                     self$results$objFunc$model$dailyER
                   )),
                   ~mu*mol~L^-1~d^-1
                )),
@@ -568,7 +754,7 @@ TwoStationMetabPlotter <- R6Class(
                   k[600],
                   .(sprintf(
                      fmt = " = %1.2e",
-                     self$results$objFunc$params[3]
+                     self$results$objFunc$model$k600
                   )),
                   ~d^-1
                )),
@@ -578,13 +764,6 @@ TwoStationMetabPlotter <- R6Class(
                adj = 1
             );
          }
-         mtext(
-            text = bquote(pCO[2]~.("(")*mu*atm*.(")")),
-            side = 2,
-            line = 2.5,
-            cex = 0.7,
-            col = self$format["pCO2ObsDown", "col"]
-         );
          
          # Plot temperature
          
