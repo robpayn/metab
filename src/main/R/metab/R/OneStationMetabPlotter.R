@@ -393,7 +393,7 @@ OneStationMetabPlotter <- R6Class(
                );
             }
             self$signal$plot(
-               variableName = "do",
+               header = "do",
                xaxt = "n",
                ylim = ylim,
                ylab = "",
@@ -537,7 +537,7 @@ OneStationMetabPlotter <- R6Class(
                   );
                }
                self$signal$plot(
-                  variableName = "pCO2",
+                  header = "pCO2",
                   xaxt = "n",
                   yaxt = "n",
                   ylim = ylim,
@@ -620,7 +620,7 @@ OneStationMetabPlotter <- R6Class(
                   );
                }
                self$signal$plot(
-                  variableName = "dic",
+                  header = "dic",
                   xaxt = "n",
                   xlab = "",
                   ylim = ylim,
@@ -684,7 +684,7 @@ OneStationMetabPlotter <- R6Class(
          
          if(plotSignal) {
             self$signal$plot(
-               variableName = "par",
+               header = "par",
                type = "l",
                lty = self$format["par", "lty"],
                col = self$format["par", "col"],
@@ -720,7 +720,7 @@ OneStationMetabPlotter <- R6Class(
          # Plot temperature on a new plot
          if(plotSignal) {
             self$signal$plot(
-               variableName = "temp",
+               header = "temp",
                pch = self$format["temp", "pch"],
                col = self$format["temp", "col"],
                lwd = self$format["temp", "lwd"],
@@ -783,7 +783,7 @@ OneStationMetabPlotter <- R6Class(
          # Plot PAR on the temperature plot
          if(plotSignal) {
             self$signal$plot(
-               variableName = "par",
+               header = "par",
                type = "l",
                lty = self$format["par", "lty"],
                col = self$format["par", "col"],
