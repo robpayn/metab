@@ -27,15 +27,27 @@ to include in the estimation.}
 
 \item{\code{sdLikelihood}}{The standard deviations used to calculate likelihood}
 
-\item{\code{useDO}}{Set to TRUE to use DO in the inference.}
+\item{\code{doHeader}}{character string representing the header for DO to use. Null
+value will prevent DO from being used in analysis.}
 
-\item{\code{usepCO2}}{Set to TRUE to use pCO2 in the inference.}
+\item{\code{pCO2Header}}{Character string representing the header for pCO2 to use. Null
+value will prevent pCO2 from being used in analysis.}
+
+\item{\code{parHeader}}{Character string representing the header for PAR to use.}
+
+\item{\code{tempHeader}}{Character string representing the header for temperature to use.}
+
+\item{\code{airPressureHeader}}{Character string representing the header for air pressure to use.}
 
 \item{\code{outputFile}}{The name of the output file.}
 
 \item{\code{staticCO2Air}}{The pCO2 in the air.}
 
 \item{\code{staticAlkalinity}}{The alkalinity.}
+
+\item{\code{co2AirHeader}}{Character string representing the header for co2 partial pressure in air to use.}
+
+\item{\code{alkalinityHeader}}{Character string representing the header for alkalinity to use.}
 }
 \if{html}{\out{</div>}}
 }
@@ -65,12 +77,17 @@ Constructs a new instance of the class
   parameterTranslatorGenerator = ParameterTranslatorMetab,
   isEstimated = c(TRUE, TRUE, TRUE),
   sdLikelihood,
-  useDO = TRUE,
-  usepCO2 = FALSE,
+  doHeader = "do",
+  pCO2Header = "pCO2",
+  parHeader = "par",
+  tempHeader = "temp",
+  airPressureHeader = "airPressure",
   staticAirPressure = NULL,
   outputFile = "results",
   staticCO2Air = NULL,
-  staticAlkalinity = NULL
+  staticAlkalinity = NULL,
+  co2AirHeader = "co2Air",
+  alkalinityHeader = "alkalinity"
 )}\if{html}{\out{</div>}}
 }
 
@@ -90,11 +107,22 @@ to include in the estimation.}
 
 \item{\code{sdLikelihood}}{The standard deviations used to calculate likelihood}
 
-\item{\code{useDO}}{Set to TRUE to use DO in the inference.
-Defaults to TRUE.}
+\item{\code{doHeader}}{Optional character string representing the header for DO to use. Null
+value will prevent DO from being used in analysis.
+Defaults to "do".}
 
-\item{\code{usepCO2}}{Set to TRUE to use pCO2 in the inference.
-Defaults to FALSE.}
+\item{\code{pCO2Header}}{Optional character string representing the header for pCO2 to use. Null
+value will prevent pCO2 from being used in analysis.
+Defaults to "pCO2".}
+
+\item{\code{parHeader}}{Optional character string representing the header for PAR to use. 
+Defaults to "par".}
+
+\item{\code{tempHeader}}{Optional character string representing the header for temperature to use. 
+Defaults to "temp".}
+
+\item{\code{airPressureHeader}}{Optional character string representing the header for air pressure to use.
+Defaults to "airPressure"}
 
 \item{\code{staticAirPressure}}{The air pressure.
 Defaults to NULL, which will cause use of air pressure
@@ -110,6 +138,12 @@ from the signal.}
 \item{\code{staticAlkalinity}}{The alkalinity.
 Defaults to NULL, which will cause use of alkalinity
 from the signal.}
+
+\item{\code{co2AirHeader}}{Optional character string representing the header for co2 partial pressure in air to use.
+Defaults to "co2Air"}
+
+\item{\code{alkalinityHeader}}{Optional character string representing the header for alkalinity to use.
+Defaults to "alkalinity"}
 }
 \if{html}{\out{</div>}}
 }

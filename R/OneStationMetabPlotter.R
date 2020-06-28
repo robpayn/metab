@@ -46,6 +46,26 @@ OneStationMetabPlotter <- R6Class(
       #'   Data frame aggregating the formats for all the plots
       format = NULL,
       
+      #' @field doHeader
+      #' Character string reperesenting the header for dissolved oxygen data
+      doHeader = NULL,
+      
+      #' @field pCO2Header
+      #' Character string reperesenting the header for dissolved carbon dioxide data.
+      pCO2Header = NULL,
+      
+      #' @field dicHeader
+      #' Character string reperesenting the header for dissolved inorganic carbon data.
+      dicHeader = NULL,
+
+      #' @field parHeader
+      #' Character string reperesenting the header for PAR data.
+      parHeader = NULL,
+      
+      #' @field tempHeader
+      #' Character string reperesenting the header for temperature data.
+      tempHeader = NULL,
+      
       # Method OneStationMetabPlotter$new ####
       #
       #' @description 
@@ -66,6 +86,21 @@ OneStationMetabPlotter <- R6Class(
       #'   Subtitle for headings on plots, will appear over right
       #'   panel on legend.
       #'   Defaults to an empty string (blank).
+      #' @param doHeader
+      #'   Optional character string reperesenting the header for dissolved oxygen data
+      #'   Defaults to "do".
+      #' @param dicHeader
+      #'   Optional character string reperesenting the header for dissolved inorganic carbon data.
+      #'   Defaults to "dic".
+      #' @param pCO2Header
+      #'   Optional character string reperesenting the header for dissolved carbon dioxide data.
+      #'   Defaults to "pCO2".
+      #' @param parHeader
+      #'   Optional character string reperesenting the header for PAR data.
+      #'   Defaults to "par".
+      #' @param tempHeader
+      #'   Optional character string reperesenting the header for PAR data.
+      #'   Defaults to "temp"
       #' @param format.doObs
       #'   Format for DO observations.
       #'   See defaults in usage.
@@ -101,6 +136,11 @@ OneStationMetabPlotter <- R6Class(
          resultFile = "results",
          plotDIC = FALSE,
          subTitle = "",
+         doHeader = "do",
+         pCO2Header = "pCO2",
+         dicHeader = "dic",
+         parHeader = "par",
+         tempHeader = "temp",
          format.doObs = list(
             name = "[DO] observed",
             lty = NA,
@@ -176,6 +216,11 @@ OneStationMetabPlotter <- R6Class(
          self$resultFile <- resultFile;
          self$plotDIC <- plotDIC;
          self$subTitle <- subTitle;
+         self$doHeader <- doHeader;
+         self$pCO2Header <- pCO2Header;
+         self$dicHeader <- dicHeader;
+         self$parHeader <- parHeader;
+         self$tempHeader <- tempHeader;
          
          # Set the format scheme for plots
          self$format <- rbind.data.frame(
@@ -373,8 +418,8 @@ OneStationMetabPlotter <- R6Class(
          # Plot the DO observations
          if(plotSignal) {
             ylim <- c(
-               min(self$signal$getVariable("do"), na.rm = TRUE),
-               max(self$signal$getVariable("do"), na.rm = TRUE)
+               min(self$signal$getVariable(self$doHeader), na.rm = TRUE),
+               max(self$signal$getVariable(self$doHeader), na.rm = TRUE)
             );
             if(plotResults) {
                ylim <- c(
@@ -393,7 +438,7 @@ OneStationMetabPlotter <- R6Class(
                );
             }
             self$signal$plot(
-               header = "do",
+               header = self$doHeader,
                xaxt = "n",
                ylim = ylim,
                ylab = "",
@@ -504,7 +549,7 @@ OneStationMetabPlotter <- R6Class(
          par(new = TRUE);
          
          if (plotSignal) {
-            plotDICSignal <- !is.null(self$signal$getVariable("pCO2"));
+            plotDICSignal <- !is.null(self$signal$getVariable(self$pCO2Header));
          } else {
             plotDICSignal <- FALSE;
          }
@@ -519,8 +564,8 @@ OneStationMetabPlotter <- R6Class(
             # Plot the pCO2 observations
             if (plotSignal && plotDICSignal) {
                ylim <- c(
-                  min(self$signal$getVariable("pCO2"), na.rm = TRUE),
-                  max(self$signal$getVariable("pCO2"), na.rm = TRUE)
+                  min(self$signal$getVariable(self$pCO2Header), na.rm = TRUE),
+                  max(self$signal$getVariable(self$pCO2Header), na.rm = TRUE)
                );
                if(plotResults && plotDICResults) {
                   ylim <- c(
@@ -537,7 +582,7 @@ OneStationMetabPlotter <- R6Class(
                   );
                }
                self$signal$plot(
-                  header = "pCO2",
+                  header = self$pCO2Header,
                   xaxt = "n",
                   yaxt = "n",
                   ylim = ylim,
@@ -602,8 +647,8 @@ OneStationMetabPlotter <- R6Class(
             # Plot the DIC observations
             if(plotSignal && plotDICSignal) {
                ylim <- c(
-                  min(self$signal$getVariable("dic"), na.rm = TRUE),
-                  max(self$signal$getVariable("dic"), na.rm = TRUE)
+                  min(self$signal$getVariable(self$dicHeader), na.rm = TRUE),
+                  max(self$signal$getVariable(self$dicHeader), na.rm = TRUE)
                );
                if(plotResults && plotDICResults) {
                   ylim <- c(
@@ -620,7 +665,7 @@ OneStationMetabPlotter <- R6Class(
                   );
                }
                self$signal$plot(
-                  header = "dic",
+                  header = self$dicHeader,
                   xaxt = "n",
                   xlab = "",
                   ylim = ylim,
@@ -684,7 +729,7 @@ OneStationMetabPlotter <- R6Class(
          
          if(plotSignal) {
             self$signal$plot(
-               header = "par",
+               header = self$parHeader,
                type = "l",
                lty = self$format["par", "lty"],
                col = self$format["par", "col"],
@@ -694,8 +739,8 @@ OneStationMetabPlotter <- R6Class(
                xaxt = "n",
                xlab = "",
                ylim = c(
-                  max(self$signal$getVariable("par")),
-                  min(self$signal$getVariable("par"))
+                  max(self$signal$getVariable(self$parHeader)),
+                  min(self$signal$getVariable(self$parHeader))
                )
             );
          } else {
@@ -720,7 +765,7 @@ OneStationMetabPlotter <- R6Class(
          # Plot temperature on a new plot
          if(plotSignal) {
             self$signal$plot(
-               header = "temp",
+               header = self$tempHeader,
                pch = self$format["temp", "pch"],
                col = self$format["temp", "col"],
                lwd = self$format["temp", "lwd"],
@@ -783,7 +828,7 @@ OneStationMetabPlotter <- R6Class(
          # Plot PAR on the temperature plot
          if(plotSignal) {
             self$signal$plot(
-               header = "par",
+               header = self$parHeader,
                type = "l",
                lty = self$format["par", "lty"],
                col = self$format["par", "col"],
@@ -793,8 +838,8 @@ OneStationMetabPlotter <- R6Class(
                xaxt = "n",
                xlab = "",
                ylim = c(
-                  max(self$signal$getVariable("par")),
-                  min(self$signal$getVariable("par"))
+                  max(self$signal$getVariable(self$parHeader)),
+                  min(self$signal$getVariable(self$parHeader))
                )
             );
          } else {
