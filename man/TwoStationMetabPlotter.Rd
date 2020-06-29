@@ -26,6 +26,16 @@ concentrations}
 panel on legend.}
 
 \item{\code{format}}{Data frame aggregating the formats for all the plots}
+
+\item{\code{doHeader}}{Character string reperesenting the header for dissolved oxygen data}
+
+\item{\code{pCO2Header}}{Character string reperesenting the header for dissolved carbon dioxide data.}
+
+\item{\code{dicHeader}}{Character string reperesenting the header for dissolved inorganic carbon data.}
+
+\item{\code{parHeader}}{Character string reperesenting the header for PAR data.}
+
+\item{\code{tempHeader}}{Character string reperesenting the header for temperature data.}
 }
 \if{html}{\out{</div>}}
 }
@@ -57,6 +67,11 @@ Construct a new instance of the class.
   plotDelta = FALSE,
   resultFile = "results",
   subTitle = "",
+  doHeader = "do",
+  pCO2Header = "pCO2",
+  dicHeader = "dic",
+  parHeader = "par",
+  tempHeader = "temp",
   format.doObsUp = list(name = "[DO] observed upstream", lty = NA, pch = 46, col =
     "black", lwd = 1),
   format.doObsDown = list(name = "[DO] observed downstream", lty = NA, pch = 176, col =
@@ -98,6 +113,21 @@ Defaults to "results".}
 \item{\code{subTitle}}{Subtitle for headings on plots, will appear over right
 panel on legend.
 Defaults to an empty string (blank).}
+
+\item{\code{doHeader}}{Optional character string reperesenting the header for dissolved oxygen data
+Defaults to "do".}
+
+\item{\code{pCO2Header}}{Optional character string reperesenting the header for dissolved carbon dioxide data.
+Defaults to "pCO2".}
+
+\item{\code{dicHeader}}{Optional character string reperesenting the header for dissolved inorganic carbon data.
+Defaults to "dic".}
+
+\item{\code{parHeader}}{Optional character string reperesenting the header for PAR data.
+Defaults to "par".}
+
+\item{\code{tempHeader}}{Optional character string reperesenting the header for PAR data.
+Defaults to "temp"}
 
 \item{\code{format.doObsUp}}{Format for upstream DO observations.
 See defaults in usage.}
