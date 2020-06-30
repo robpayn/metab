@@ -773,33 +773,6 @@ TwoStationMetabPlotter <- R6Class(
                      );
                   }
                }
-               mtext(
-                  text = bquote(paste(
-                     .(sprintf(
-                        fmt = "ER = %1.2e",
-                        self$results$objFunc$model$dailyER
-                     )),
-                     ~mu*mol~L^-1~d^-1
-                  )),
-                  side = 3,
-                  line = 0.5,
-                  cex = 0.6,
-                  adj = 0
-               );
-               mtext(
-                  text = bquote(paste(
-                     k[600],
-                     .(sprintf(
-                        fmt = " = %1.2e",
-                        self$results$objFunc$model$k600
-                     )),
-                     ~d^-1
-                  )),
-                  side = 3,
-                  line = 0.5,
-                  cex = 0.6,
-                  adj = 1
-               );
             }
             
             par(new = TRUE);
@@ -851,6 +824,37 @@ TwoStationMetabPlotter <- R6Class(
             lwd = self$format["tempUp", "lwd"],
             col = self$format["tempUp", "col"]
          );
+         if (plotResults) {
+            mtext(
+               text = bquote(paste(
+                  .(sprintf(
+                     fmt = "ER = %1.2e",
+                     self$results$objFunc$model$dailyER
+                  )),
+                  ~mu*mol~L^-1~d^-1
+               )),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 0
+            );
+            mtext(
+               text = bquote(paste(
+                  k[600],
+                  .(sprintf(
+                     fmt = " = %1.2e",
+                     self$results$objFunc$model$k600
+                  )),
+                  ~d^-1
+               )),
+               side = 3,
+               line = 0.5,
+               cex = 0.6,
+               adj = 1
+            );
+         }
+         
       }
+      
    )
 )
