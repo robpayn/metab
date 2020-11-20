@@ -158,8 +158,6 @@ TwoStationMetabDoDic <- R6Class(
                );
                self$upstreampCO2[index] <- equil$fCO2;
                self$upstreampH[index] <- equil$pH;
-               
-               self$carbonateEq$resetFromTemp(tempC = self$upstreamTemp[index]);
                self$upstreamkH[index] <- self$carbonateEq$kHenryCO2;
                self$upstreamCO2Sat[index] <- self$upstreamkH[index] * self$pCO2air;
                self$upstreamDICSat[index] <- self$carbonateEq$optDICFromfCO2TotalAlk(
@@ -184,8 +182,6 @@ TwoStationMetabDoDic <- R6Class(
                   );
                   self$upstreamDIC[index] <- 1e6 * equil$concDIC;
                   self$upstreampH[index] <- equil$pH;
-                  
-                  self$carbonateEq$resetFromTemp(tempC = self$upstreamTemp[index]);
                   self$upstreamkH[index] <- self$carbonateEq$kHenryCO2;
                   self$upstreamCO2Sat[index] <- self$upstreamkH[index] * self$pCO2air;
                   self$upstreamDICSat[index] <- self$carbonateEq$optDICFromfCO2TotalAlk(
@@ -258,6 +254,7 @@ TwoStationMetabDoDic <- R6Class(
          super$run();
          
          # Set up the data frame that will be returned
+         
          dicPredLength <- length(self$downstreamTime);
          emptyColumn <- rep(x = as.numeric(NA), times = dicPredLength);
          self$output <- data.frame(
@@ -274,59 +271,68 @@ TwoStationMetabDoDic <- R6Class(
             dic = emptyColumn
          );
          
+         # Calculate the RHS target value of the equation for 
+         # the DIC change over reach transport. The RHS is the
+         # deterministic terms of the equation that are independent
+         # of the downstream pCO2 measurements.
+         
+         upstreamCO2Deficit <- 
+            self$upstreamCO2Sat -
+            self$upstreampCO2 * self$upstreamkH;
+         self$output$co2Equilibration <- 
+            self$output$residenceTime * 
+            self$output$kCO2 * 
+            0.5 * (upstreamCO2Deficit + self$downstreamCO2Sat);
+         target <- 
+            self$upstreamDIC +
+            self$output$co2Production + 
+            self$output$co2Consumption + 
+            self$output$co2Equilibration;
+
          # Calculate the change in DIC for each parcel of water
          # being transported over the reach
-         for (i in 1:dicPredLength) {
-            
-            # Calculate pCO2 and fGas based on new DIC
-            upstreamCO2Deficit <- self$upstreamCO2Sat[i] -
-               self$upstreampCO2[i] * self$upstreamkH[i];
-            
-            # Calculate the RHS target value of the equation for 
-            # the DIC change over reach transport. The RHS is the
-            # deterministic terms of the equation that are independent
-            # of the downstream pCO2 measurements.
-            self$output$co2Equilibration[i] <- 
-               self$output$residenceTime[i] * 
-               self$output$kCO2[i] * 
-               0.5 * (upstreamCO2Deficit + self$downstreamCO2Sat[i]);
-            target <- 
-               self$upstreamDIC[i] +
-               self$output$co2Production[i] + 
-               self$output$co2Consumption[i] + 
-               self$output$co2Equilibration[i];
-            
-            # Find the combination of downstream DIC and CO2 concentrations
-            # that allows the model to match the RHS calculated above. This
-            # calculation provides the second equation to determine the second
-            # unknown, based on known carbonate equilibrium relations.
-            optim <- optimize(
-               f = function(dic, alkalinity, kH, kCO2, dt, target) 
-               {
-                  CO2 <- self$carbonateEq$optfCO2FromDICTotalAlk(
-                     concDIC = dic * 1e-6,
-                     totalAlk = alkalinity
-                  )$fCO2 * kH;
-                  guess <- dic + kCO2 * dt * CO2 * 0.5;
-                  return( (target - guess)^2 );
-               },
-               alkalinity = self$alkalinity * 1e-6,
-               kH = self$downstreamkH[i],
-               kCO2 = self$output$kCO2[i],
-               dt = self$output$residenceTime[i],
-               target = target,
-               lower = 0,
-               upper = self$maxDIC
-            );
-            self$output$dic[i] <- optim$minimum;
-            equil <- self$carbonateEq$optfCO2FromDICTotalAlk(
-               concDIC = self$output$dic[i] * 1e-6,
-               totalAlk = self$alkalinity * 1e-6
-            );
-            self$output$pH[i] <- equil$pH;
-            self$output$pCO2[i] <- equil$fCO2;
-            
-         }
+         sapply(
+            X = 1:dicPredLength,
+            FUN = function(i) {
+               
+               # Reset the temperature for carbonate equilibrium
+               carbonateEq <- CarbonateEq$new(
+                  tempC = 0.5 *
+                     (self$upstreamTemp[i] + self$downstreamTemp[i])
+               );
+   
+               # Find the combination of downstream DIC and CO2 concentrations
+               # that allows the model to match the RHS calculated above. This
+               # calculation provides the second equation to determine the second
+               # unknown, based on known carbonate equilibrium relations.
+               optim <- optimize(
+                  f = function(dic, alkalinity, kH, kCO2, dt, target) 
+                  {
+                     CO2 <- carbonateEq$optfCO2FromDICTotalAlk(
+                        concDIC = dic * 1e-6,
+                        totalAlk = alkalinity
+                     )$fCO2 * kH;
+                     guess <- dic + kCO2 * dt * CO2 * 0.5;
+                     return( (target - guess)^2 );
+                  },
+                  alkalinity = self$alkalinity * 1e-6,
+                  kH = self$downstreamkH[i],
+                  kCO2 = self$output$kCO2[i],
+                  dt = self$output$residenceTime[i],
+                  target = target[i],
+                  lower = 0,
+                  upper = self$maxDIC
+               );
+               self$output$dic[i] <<- optim$minimum;
+               equil <- carbonateEq$optfCO2FromDICTotalAlk(
+                  concDIC = self$output$dic[i] * 1e-6,
+                  totalAlk = self$alkalinity * 1e-6
+               );
+               self$output$pH[i] <<- equil$pH;
+               self$output$pCO2[i] <<- equil$fCO2;
+               
+            }
+         )
          
          return(self$output);
       },
