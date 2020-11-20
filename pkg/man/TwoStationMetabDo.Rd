@@ -18,20 +18,12 @@ Units of micromoles per liter per day.}
 
 \item{\code{ratioDoCfix}}{Ratio of DO molecules produced relative to carbon atoms fixed.}
 
-\item{\code{dailyGPPDO}}{Model parameter for daily gross primary production
-based on oxygen molecules produced.
-Units of micromoles per liter per day.}
-
 \item{\code{dailyER}}{Model parameter for daily aerobic ecosystem respiration
 based on carbon atoms respired.
 Units of micromoles per liter per day.}
 
 \item{\code{ratioDoCresp}}{Ratio of DO molecules consumed relative to carbon atoms respired.
 Defaults to 1.}
-
-\item{\code{dailyERDO}}{Model parameter for daily aerobic ecosystem respiration
-based on oxygen molecules consumed.
-Units of micromoles per liter per day.}
 
 \item{\code{k600}}{Model parameter for the gas exchange rate}
 
@@ -41,9 +33,14 @@ Units of micromoles per liter per day.}
 
 \item{\code{parTotal}}{Total PAR over the simulation period}
 
-\item{\code{upstreamTime}}{Time a parcel of water is passing upstream station}
+\item{\code{upstreamTime}}{Numeric time in days a parcel of water is passing upstream station}
+
+\item{\code{upstreamTimePOSIX}}{POSIX time a parcel of water is passing upstream station}
 
 \item{\code{upstreamTemp}}{Temperature of a parcel of water when passing upstream station}
+
+\item{\code{upstreamPAR}}{Photosynthetically active radiation on a parcel of water when 
+passing upstream station}
 
 \item{\code{upstreamDO}}{DO concentration of a parcel of water when passing upstream station}
 
@@ -52,7 +49,12 @@ passing upstream station}
 
 \item{\code{downstreamTime}}{Time a parcel of water is passing downstream station}
 
+\item{\code{downstreamTimePOSIX}}{POSIX time a parcel of water is passing upstream station}
+
 \item{\code{downstreamTemp}}{Temperature of a parcel of water when passing downstream station}
+
+\item{\code{downstreamPAR}}{Photosynthetically active radiation on a parcel of water when 
+passing downstream station}
 
 \item{\code{downstreamDOSat}}{The saturation concentration of DO of a parcel of water when
 passing downstream station}
@@ -67,6 +69,8 @@ passing downstream station}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-new}{\code{TwoStationMetabDo$new()}}
+\item \href{#method-getDailyGppDo}{\code{TwoStationMetabDo$getDailyGppDo()}}
+\item \href{#method-getDailyErDo}{\code{TwoStationMetabDo$getDailyErDo()}}
 \item \href{#method-run}{\code{TwoStationMetabDo$run()}}
 \item \href{#method-plot}{\code{TwoStationMetabDo$plot()}}
 \item \href{#method-plotDO}{\code{TwoStationMetabDo$plotDO()}}
@@ -87,12 +91,14 @@ Construct a new instance of the class
   ratioDoCresp = -1,
   k600,
   airPressure,
-  par,
   upstreamTime,
   upstreamTemp,
+  upstreamPAR = NA,
   upstreamDO,
   downstreamTime,
   downstreamTemp,
+  downstreamPAR = NA,
+  par = 0.5 * (upstreamPAR + downstreamPAR),
   parTotal = NA,
   stdAirPressure = 760,
   doSatCalculator = DoSatCalculator$new(stdAirPressure = stdAirPressure),
@@ -127,15 +133,13 @@ Units must be consistent with the units of the optional standard air pressure
 argument.
 Default value for standard air pressure results in units of mm Hg.}
 
-\item{\code{par}}{Photosynthetically active radiation. 
-Units are arbitrary, but must be consistent with total PAR total if the
-optional argument for total PAR is specified.}
-
 \item{\code{upstreamTime}}{Time vector for data at upstream location.
 (POSIXct vector or character vector in a standard text format
 to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")}
 
 \item{\code{upstreamTemp}}{Vector of temperatures in degrees C at upstream location.}
+
+\item{\code{upstreamPAR}}{Optional vector of values for PAR at upstream station}
 
 \item{\code{upstreamDO}}{Vector of DO concentrations at upstream location.}
 
@@ -146,6 +150,13 @@ the travel times of water over the reach.
 to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")}
 
 \item{\code{downstreamTemp}}{Vector of temperatures in degrees C at the downstream location.}
+
+\item{\code{downstreamPAR}}{Optional vector of values for PAR at downstream station}
+
+\item{\code{par}}{Photosynthetically active radiation. 
+Units are arbitrary, but must be consistent with total PAR total if the
+optional argument for total PAR is specified.
+Defaults to the average of upstream and downstream PAR arguments}
 
 \item{\code{parTotal}}{Total PAR over the evaluation period. Units must be the same as the PAR
 data argument.
@@ -165,6 +176,32 @@ rate from the gas exchange parameter normalized to a Schmidt number.
 Defaults to \code{\link{kSchmidtDO}}}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyGppDo"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyGppDo}{}}}
+\subsection{Method \code{getDailyGppDo()}}{
+Calculates the current daily GPP relative to DO
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TwoStationMetabDo$getDailyGppDo()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily GPP setting as a rate of change in DO concentration
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyErDo"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyErDo}{}}}
+\subsection{Method \code{getDailyErDo()}}{
+Calculates the current daily ER relative to DO
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TwoStationMetabDo$getDailyErDo()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily ER setting as a rate of change in DO concentration
 }
 }
 \if{html}{\out{<hr>}}

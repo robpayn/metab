@@ -17,16 +17,8 @@ A model for predicting changes in dissolved oxygen concentrations
 \item{\code{ratioDicCfix}}{Ratio of carbon atoms in DIC consumed relative to carbon atoms fixed.
 Defaults to 1.}
 
-\item{\code{dailyGPPDIC}}{Model parameter for daily gross primary production
-based on C atoms in DIC consumed.
-Units of micromoles per liter per day.}
-
 \item{\code{ratioDicCresp}}{Ratio of carbon atoms in DIC produced relative to carbon atoms respired.
 Defaults to 1.}
-
-\item{\code{dailyERDIC}}{Model parameter for daily aerobic ecosystem respiration
-based on C atoms in DIC consumed.
-Units of micromoles per liter per day.}
 
 \item{\code{upstreamDIC}}{Upstream DIC concentration}
 
@@ -62,6 +54,8 @@ Units of micromoles per liter per day.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-new}{\code{TwoStationMetabDoDic$new()}}
+\item \href{#method-getDailyGppDic}{\code{TwoStationMetabDoDic$getDailyGppDic()}}
+\item \href{#method-getDailyErDic}{\code{TwoStationMetabDoDic$getDailyErDic()}}
 \item \href{#method-run}{\code{TwoStationMetabDoDic$run()}}
 \item \href{#method-plot}{\code{TwoStationMetabDoDic$plot()}}
 \item \href{#method-plotpCO2}{\code{TwoStationMetabDoDic$plotpCO2()}}
@@ -71,6 +65,8 @@ Units of micromoles per liter per day.}
 \if{html}{
 \out{<details open ><summary>Inherited methods</summary>}
 \itemize{
+\item \out{<span class="pkg-link" data-pkg="metab" data-topic="TwoStationMetabDo" data-id="getDailyErDo">}\href{../../metab/html/TwoStationMetabDo.html#method-getDailyErDo}{\code{metab::TwoStationMetabDo$getDailyErDo()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="metab" data-topic="TwoStationMetabDo" data-id="getDailyGppDo">}\href{../../metab/html/TwoStationMetabDo.html#method-getDailyGppDo}{\code{metab::TwoStationMetabDo$getDailyGppDo()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="metab" data-topic="TwoStationMetabDo" data-id="plotDO">}\href{../../metab/html/TwoStationMetabDo.html#method-plotDO}{\code{metab::TwoStationMetabDo$plotDO()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="metab" data-topic="TwoStationMetabDo" data-id="plotTemp">}\href{../../metab/html/TwoStationMetabDo.html#method-plotTemp}{\code{metab::TwoStationMetabDo$plotTemp()}}\out{</span>}
 }
@@ -131,6 +127,32 @@ Defaults to \code{\link{kSchmidtCO2}}}
 Defaults to 1e6.}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyGppDic"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyGppDic}{}}}
+\subsection{Method \code{getDailyGppDic()}}{
+Calculates the current daily GPP relative to DIC
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TwoStationMetabDoDic$getDailyGppDic()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily GPP setting as a rate of change in DIC concentration
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyErDic"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyErDic}{}}}
+\subsection{Method \code{getDailyErDic()}}{
+Calculates the current daily ER relative to DIC
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TwoStationMetabDoDic$getDailyErDic()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily ER setting as a rate of change in DIC concentration
 }
 }
 \if{html}{\out{<hr>}}

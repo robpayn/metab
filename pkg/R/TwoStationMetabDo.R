@@ -35,12 +35,6 @@ TwoStationMetabDo <- R6Class(
       #'   Ratio of DO molecules produced relative to carbon atoms fixed.
       ratioDoCfix = NULL,
       
-      #' @field dailyGPPDO
-      #'   Model parameter for daily gross primary production
-      #'   based on oxygen molecules produced.
-      #'   Units of micromoles per liter per day.
-      dailyGPPDO = NULL,
-      
       #' @field dailyER
       #'   Model parameter for daily aerobic ecosystem respiration
       #'   based on carbon atoms respired.
@@ -51,12 +45,6 @@ TwoStationMetabDo <- R6Class(
       #'    Ratio of DO molecules consumed relative to carbon atoms respired.
       #'    Defaults to 1.
       ratioDoCresp = NULL,
-      
-      #' @field dailyERDO
-      #'   Model parameter for daily aerobic ecosystem respiration
-      #'   based on oxygen molecules consumed.
-      #'   Units of micromoles per liter per day.
-      dailyERDO = NULL, 
       
       #' @field k600
       #'   Model parameter for the gas exchange rate
@@ -75,12 +63,21 @@ TwoStationMetabDo <- R6Class(
       parTotal = NULL, 
       
       #' @field upstreamTime
-      #'   Time a parcel of water is passing upstream station
+      #'   Numeric time in days a parcel of water is passing upstream station
       upstreamTime = NULL,
+      
+      #' @field upstreamTimePOSIX
+      #'   POSIX time a parcel of water is passing upstream station
+      upstreamTimePOSIX = NULL,
       
       #' @field upstreamTemp
       #'   Temperature of a parcel of water when passing upstream station
       upstreamTemp = NULL,
+      
+      #' @field upstreamPAR
+      #'   Photosynthetically active radiation on a parcel of water when 
+      #'   passing upstream station
+      upstreamPAR = NULL,
       
       #' @field upstreamDO
       #'   DO concentration of a parcel of water when passing upstream station
@@ -95,9 +92,18 @@ TwoStationMetabDo <- R6Class(
       #'   Time a parcel of water is passing downstream station
       downstreamTime = NULL, 
       
+      #' @field downstreamTimePOSIX
+      #'   POSIX time a parcel of water is passing upstream station
+      downstreamTimePOSIX = NULL,
+      
       #' @field downstreamTemp
       #'   Temperature of a parcel of water when passing downstream station
       downstreamTemp = NULL,
+      
+      #' @field downstreamPAR
+      #'   Photosynthetically active radiation on a parcel of water when 
+      #'   passing downstream station
+      downstreamPAR = NULL,
       
       #' @field downstreamDOSat
       #'   The saturation concentration of DO of a parcel of water when
@@ -141,16 +147,14 @@ TwoStationMetabDo <- R6Class(
       #'    Units must be consistent with the units of the optional standard air pressure
       #'    argument.
       #'    Default value for standard air pressure results in units of mm Hg.
-      #' @param par 
-      #'    Photosynthetically active radiation. 
-      #'    Units are arbitrary, but must be consistent with total PAR total if the
-      #'    optional argument for total PAR is specified.
       #' @param upstreamTime
       #'    Time vector for data at upstream location.
       #'    (POSIXct vector or character vector in a standard text format
       #'    to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")
       #' @param upstreamTemp
       #'    Vector of temperatures in degrees C at upstream location.
+      #' @param upstreamPAR
+      #'    Optional vector of values for PAR at upstream station
       #' @param upstreamDO
       #'    Vector of DO concentrations at upstream location.
       #' @param downstreamTime
@@ -161,6 +165,13 @@ TwoStationMetabDo <- R6Class(
       #'    to be forced to POSIXct "YYYY-MM-DD HH:mm:ss")
       #' @param downstreamTemp
       #'    Vector of temperatures in degrees C at the downstream location.
+      #' @param downstreamPAR
+      #'    Optional vector of values for PAR at downstream station
+      #' @param par 
+      #'    Photosynthetically active radiation. 
+      #'    Units are arbitrary, but must be consistent with total PAR total if the
+      #'    optional argument for total PAR is specified.
+      #'    Defaults to the average of upstream and downstream PAR arguments
       #' @param parTotal 
       #'    Total PAR over the evaluation period. Units must be the same as the PAR
       #'    data argument.
@@ -187,12 +198,14 @@ TwoStationMetabDo <- R6Class(
          ratioDoCresp = -1.0,
          k600,
          airPressure, 
-         par,
          upstreamTime, 
          upstreamTemp,
+         upstreamPAR = NA,
          upstreamDO,
          downstreamTime,
          downstreamTemp,
+         downstreamPAR = NA,
+         par = 0.5 * (upstreamPAR + downstreamPAR),
          parTotal = NA,
          stdAirPressure = 760,
          doSatCalculator = DoSatCalculator$new(
@@ -208,18 +221,22 @@ TwoStationMetabDo <- R6Class(
          self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
          self$airPressure <- airPressure;
+         self$upstreamPAR <- upstreamPAR;
+         self$downstreamPAR <- downstreamPAR;
          self$par <- par;
          self$parTotal <- parTotal; 
          
          # Time attribute should be POSIXct
+         self$upstreamTimePOSIX <- as.POSIXct(upstreamTime);
          self$upstreamTime <- 
-            as.numeric(as.POSIXct(upstreamTime)) / 86400;
+            as.numeric(self$upstreamTimePOSIX) / 86400;
          self$upstreamTemp <- upstreamTemp;
          self$upstreamDO <- upstreamDO;
          
          # Time attribute should be POSIXct
+         self$downstreamTimePOSIX <- as.POSIXct(downstreamTime);
          self$downstreamTime <- 
-            as.numeric(as.POSIXct(downstreamTime)) / 86400;
+            as.numeric(self$downstreamTimePOSIX) / 86400;
          self$downstreamTemp <- downstreamTemp;
          
          self$doSatCalculator <- doSatCalculator;
@@ -256,6 +273,32 @@ TwoStationMetabDo <- R6Class(
          }
       },
       
+      # Method TwoStationMetabDo$getDailyGppDo ####
+      #
+      #' @description
+      #'    Calculates the current daily GPP relative to DO
+      #'
+      #' @return 
+      #'    Current daily GPP setting as a rate of change in DO concentration
+      #'    
+      getDailyGppDo = function()
+      {
+         return(self$dailyGPP * self$ratioDoCfix);
+      },
+      
+      # Method TwoStationMetabDo$getDailyErDo ####
+      #
+      #' @description
+      #'    Calculates the current daily ER relative to DO
+      #'
+      #' @return 
+      #'    Current daily ER setting as a rate of change in DO concentration
+      #'    
+      getDailyErDo = function()
+      {
+         return(self$dailyER * self$ratioDoCresp);
+      },
+      
       # Method TwoStationMetabDo$run ####
       #
       #' @description
@@ -276,10 +319,6 @@ TwoStationMetabDo <- R6Class(
       #'    
       run = function() 
       {
-         # Calculate the effect of metabolism on DO
-         self$dailyGPPDO <- self$dailyGPP * self$ratioDoCfix;
-         self$dailyERDO <- self$dailyER * self$ratioDoCresp;
-
          # Calculate the saturation deficit upstream
          upstreamDODeficit <- self$upstreamDOSat - self$upstreamDO;
          
@@ -293,11 +332,16 @@ TwoStationMetabDo <- R6Class(
          # Calculate the residence time of each parcel of water
          residenceTime <- self$downstreamTime - self$upstreamTime;
          
+         # Calculate the C fixation and respiration for each
+         # time step
+         cFixation <- self$dailyGPP * 
+            ((self$par * residenceTime) / self$parTotal);
+         cRespiration <- self$dailyER * residenceTime;
+         
          # Calculate the DO production and consumption for
          # each time step
-         doProduction <- self$dailyGPPDO * 
-            ((self$par * residenceTime) / self$parTotal); 
-         doConsumption <- residenceTime * self$dailyERDO;
+         doProduction <- cFixation * self$ratioDoCfix; 
+         doConsumption <- cRespiration * self$ratioDoCresp;
          doEquilibration <- residenceTime * k * 
             (0.5 * (upstreamDODeficit + self$downstreamDOSat));
          
@@ -314,12 +358,11 @@ TwoStationMetabDo <- R6Class(
             );
          
          self$output <- data.frame(
-            time = as.POSIXct(
-               self$downstreamTime * 86400, 
-               origin = as.POSIXct("1970-01-01", tz = "GMT")
-            ),
+            time = self$downstreamTimePOSIX,
             residenceTime = residenceTime,
             do = downstreamDO,
+            cFixation = cFixation,
+            cRespiration = cRespiration,
             doProduction = doProduction,
             doConsumption = doConsumption,
             doEquilibration = doEquilibration,
@@ -531,10 +574,7 @@ TwoStationMetabDo <- R6Class(
             ...
          );
          points(
-            x = as.POSIXct(
-               self$upstreamTime * 86400, 
-               origin = as.POSIXct("1970-01-01", tz = "UTC")
-            ),
+            x = self$upstreamTimePOSIX,
             y = self$upstreamDO,
             pch = 20
          )
@@ -606,10 +646,7 @@ TwoStationMetabDo <- R6Class(
             ...
          );
          points(
-            x = as.POSIXct(
-               self$upstreamTime * 86400, 
-               origin = as.POSIXct("1970-01-01", tz = "UTC")
-            ),
+            x = self$upstreamTimePOSIX,
             y = self$upstreamTemp,
             pch = 20
          )

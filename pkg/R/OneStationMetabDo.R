@@ -35,12 +35,6 @@ OneStationMetabDo <- R6Class(
       #'    Ratio of DO molecules produced relative to carbon atoms fixed.
       ratioDoCfix = NULL,
       
-      #' @field dailyGPPDO
-      #'   Model parameter for daily gross primary production
-      #'   based on oxygen molecules produced.
-      #'   Units of micromoles per liter per day.
-      dailyGPPDO = NULL,
-      
       #' @field dailyER
       #'   Model parameter for daily aerobic ecosystem respiration
       #'   based on carbon atoms respired.
@@ -51,12 +45,6 @@ OneStationMetabDo <- R6Class(
       #'    Ratio of DO molecules consumed relative to carbon atoms respired.
       #'    Defaults to 1.
       ratioDoCresp = NULL,
-      
-      #' @field dailyERDO
-      #'   Model parameter for daily aerobic ecosystem respiration
-      #'   based on oxygen molecules consumed.
-      #'   Units of micromoles per liter per day.
-      dailyERDO = NULL, 
       
       #' @field k600
       #'   Model parameter for the gas exchange rate
@@ -71,8 +59,12 @@ OneStationMetabDo <- R6Class(
       initialDO = NULL, 
       
       #' @field time
-      #'   Vector of times for model predictions
+      #'   Vector of numeric times (in days) for model predictions
       time = NULL, 
+
+      #' @field timePOSIX
+      #'   Vector of times as POSIX object for model predictions
+      timePOSIX = NULL, 
       
       #' @field temp
       #'   Vector of temperatures at the simulated times
@@ -192,11 +184,12 @@ OneStationMetabDo <- R6Class(
          self$par <- par;
          self$doSatCalculator <- doSatCalculator;
          self$kSchmidtFunc <- kSchmidtFunc;
-
+         self$timePOSIX <- as.POSIXct(time);
+         
          # Time argument is adjusted to units of days since the epoch
          # (assumed 1970-01-01) in UTC
          
-         self$time <- as.numeric(as.POSIXct(time)) / 86400;
+         self$time <- as.numeric(self$timePOSIX) / 86400;
          
          # Calculate the time steps between data points
          
@@ -217,6 +210,32 @@ OneStationMetabDo <- R6Class(
          } else {
             self$parTotal <- parTotal; 
          }
+      },
+      
+      # Method OneStationMetabDo$getDailyGppDo ####
+      #
+      #' @description
+      #'    Calculates the current daily GPP relative to DO
+      #'
+      #' @return 
+      #'    Current daily GPP setting as a rate of change in DO concentration
+      #'    
+      getDailyGppDo = function()
+      {
+         return(self$dailyGPP * self$ratioDoCfix);
+      },
+      
+      # Method OneStationMetabDo$getDailyErDo ####
+      #
+      #' @description
+      #'    Calculates the current daily ER relative to DO
+      #'
+      #' @return 
+      #'    Current daily ER setting as a rate of change in DO concentration
+      #'    
+      getDailyErDo = function()
+      {
+         return(self$dailyER * self$ratioDoCresp);
       },
       
       # Method OneStationMetabDo$run ####
@@ -240,12 +259,7 @@ OneStationMetabDo <- R6Class(
       #'    
       run = function() 
       {
-         # Caclulate the effect of metabolism on DO based
-         # on stoichiometric efficiencies
-         
-         self$dailyGPPDO <- self$dailyGPP * self$ratioDoCfix;
-         self$dailyERDO <- self$dailyER * self$ratioDoCresp;
-         
+
          # Specify length to use for vectors and the data frame based 
          # on the length of time vector
          
@@ -254,20 +268,20 @@ OneStationMetabDo <- R6Class(
          # Creates a data frame to store simulated values at each
          # time step
          
+         cFixation <- self$dailyGPP * 
+            ((self$par * self$dt) / self$parTotal);
+         cRespiration <- self$dailyER * self$dt;
          self$output <- data.frame(
-            time = as.POSIXct(
-               self$time * 86400, 
-               origin = as.POSIXct("1970-01-01", tz = "GMT")
-            ),
+            time = self$timePOSIX,
             do = rep(as.numeric(NA), doPredLength),
             doSat = self$doSatCalculator$calculate(
                temp = self$temp,
                airPressure = self$airPressure
             ),
-            doProduction = self$dailyGPPDO * 
-               ((self$par * self$dt) / self$parTotal),
-            doConsumption = self$dailyERDO * 
-               self$dt,
+            cFixation = cFixation,
+            cRespiration = cRespiration,
+            doProduction = cFixation * self$ratioDoCfix,
+            doConsumption = cRespiration * self$ratioDoCresp,
             k = self$kSchmidtFunc(self$temp, self$k600),
             temp = self$temp,
             dt = self$dt
@@ -280,7 +294,8 @@ OneStationMetabDo <- R6Class(
          # Iterates over the time steps to model the change in dissolved
          # oxygen over time (one station method)
          for (i in 2:doPredLength) {
-            self$output$do[i] <- self$output$do[i - 1] +
+            self$output$do[i] <- 
+               self$output$do[i - 1] +
                self$output$doProduction[i - 1] +
                self$output$doConsumption[i - 1] + 
                self$dt[i - 1] * self$output$k[i - 1] * 

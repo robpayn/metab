@@ -26,22 +26,10 @@ OneStationMetabDoDic <- R6Class(
       #'    Defaults to 1.
       ratioDicCfix = NULL,
       
-      #' @field dailyGPPDIC
-      #'   Model parameter for daily gross primary production
-      #'   based on C atoms in DIC consumed.
-      #'   Units of micromoles per liter per day.
-      dailyGPPDIC = NULL,
-      
       #' @field ratioDicCresp
       #'    Ratio of carbon atoms in DIC produced relative to carbon atoms respired.
       #'    Defaults to 1.
       ratioDicCresp = NULL,
-      
-      #' @field dailyERDIC
-      #'   Model parameter for daily aerobic ecosystem respiration
-      #'   based on C atoms in DIC consumed.
-      #'   Units of micromoles per liter per day.
-      dailyERDIC = NULL,
       
       #' @field initialDIC
       #'   initial total dissolved inorganic carbon concentration
@@ -144,6 +132,32 @@ OneStationMetabDoDic <- R6Class(
          self$kSchmidtFuncCO2 <- kSchmidtFuncCO2;
       },
       
+      # Method OneStationMetabDoDic$getDailyGppDic ####
+      #
+      #' @description
+      #'    Calculates the current daily GPP relative to DIC
+      #'
+      #' @return 
+      #'    Current daily GPP setting as a rate of change in DIC concentration
+      #'    
+      getDailyGppDic = function()
+      {
+         return(self$dailyGPP * self$ratioDicCfix);
+      },
+
+      # Method OneStationMetabDoDic$getDailyErDic ####
+      #
+      #' @description
+      #'    Calculates the current daily ER relative to DIC
+      #'
+      #' @return 
+      #'    Current daily ER setting as a rate of change in DIC concentration
+      #'    
+      getDailyErDic = function()
+      {
+         return(self$dailyER * self$ratioDicCresp);
+      },
+      
       # Method OneStationMetabDoDic$run ####
       #
       #' @description 
@@ -174,18 +188,12 @@ OneStationMetabDoDic <- R6Class(
          # Run the superclass one station metabolism model for DO
          super$run();
          
-         # Set the effects of metabolism on DIC
-         self$dailyGPPDIC <- self$dailyGPP * self$ratioDicCfix;
-         self$dailyERDIC <- self$dailyER * self$ratioDicCresp;
-         
          # Set up the data frame that will be returned
          dicPredLength <- length(self$time);
          self$output <- data.frame(
             self$output, 
-            co2Production = 
-               (self$output$doConsumption / self$ratioDoCresp) * self$ratioDicCresp,
-            co2Consumption = 
-               (self$output$doProduction / self$ratioDoCfix) * self$ratioDicCfix,
+            co2Production = self$output$cRespiration * self$ratioDicCresp,
+            co2Consumption = self$output$cFixation * self$ratioDicCfix,
             kCO2 = self$kSchmidtFuncCO2(temp = self$temp, k600 = self$k600),
             kH = numeric(length = dicPredLength),
             co2Sat = numeric(length = dicPredLength),

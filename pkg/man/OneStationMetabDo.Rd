@@ -18,10 +18,6 @@ Units of micromoles per liter per day.}
 
 \item{\code{ratioDoCfix}}{Ratio of DO molecules produced relative to carbon atoms fixed.}
 
-\item{\code{dailyGPPDO}}{Model parameter for daily gross primary production
-based on oxygen molecules produced.
-Units of micromoles per liter per day.}
-
 \item{\code{dailyER}}{Model parameter for daily aerobic ecosystem respiration
 based on carbon atoms respired.
 Units of micromoles per liter per day.}
@@ -29,17 +25,15 @@ Units of micromoles per liter per day.}
 \item{\code{ratioDoCresp}}{Ratio of DO molecules consumed relative to carbon atoms respired.
 Defaults to 1.}
 
-\item{\code{dailyERDO}}{Model parameter for daily aerobic ecosystem respiration
-based on oxygen molecules consumed.
-Units of micromoles per liter per day.}
-
 \item{\code{k600}}{Model parameter for the gas exchange rate}
 
 \item{\code{airPressure}}{Air pressure}
 
 \item{\code{initialDO}}{Initial dissolved oxygen concentration}
 
-\item{\code{time}}{Vector of times for model predictions}
+\item{\code{time}}{Vector of numeric times (in days) for model predictions}
+
+\item{\code{timePOSIX}}{Vector of times as POSIX object for model predictions}
 
 \item{\code{temp}}{Vector of temperatures at the simulated times}
 
@@ -59,6 +53,8 @@ Units of micromoles per liter per day.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-new}{\code{OneStationMetabDo$new()}}
+\item \href{#method-getDailyGppDo}{\code{OneStationMetabDo$getDailyGppDo()}}
+\item \href{#method-getDailyErDo}{\code{OneStationMetabDo$getDailyErDo()}}
 \item \href{#method-run}{\code{OneStationMetabDo$run()}}
 \item \href{#method-plot}{\code{OneStationMetabDo$plot()}}
 \item \href{#method-plotPAR}{\code{OneStationMetabDo$plotPAR()}}
@@ -148,6 +144,32 @@ rate from the gas exchange parameter normalized to a Schmidt number.
 Defaults to \code{\link{kSchmidtDO}}}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyGppDo"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyGppDo}{}}}
+\subsection{Method \code{getDailyGppDo()}}{
+Calculates the current daily GPP relative to DO
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{OneStationMetabDo$getDailyGppDo()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily GPP setting as a rate of change in DO concentration
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getDailyErDo"></a>}}
+\if{latex}{\out{\hypertarget{method-getDailyErDo}{}}}
+\subsection{Method \code{getDailyErDo()}}{
+Calculates the current daily ER relative to DO
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{OneStationMetabDo$getDailyErDo()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Current daily ER setting as a rate of change in DO concentration
 }
 }
 \if{html}{\out{<hr>}}
