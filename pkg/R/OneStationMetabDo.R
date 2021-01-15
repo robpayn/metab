@@ -50,6 +50,10 @@ OneStationMetabDo <- R6Class(
       #'   Model parameter for the gas exchange rate
       k600 = NULL, 
       
+      #' @field alphag
+      #'   Model parameter for the turnover rate due to groundwater
+      alphag = NULL, 
+      
       #' @field airPressure
       #'   Air pressure
       airPressure = NULL,
@@ -77,6 +81,10 @@ OneStationMetabDo <- R6Class(
       #' @field parTotal
       #'   Total PAR over the simulation period
       parTotal = NULL, 
+
+      #' @field gwC
+      #'   Concentration of oxygen in inflowing groundwater
+      gwC = NULL, 
       
       #' @field dt
       #'   Vector of time steps
@@ -112,6 +120,8 @@ OneStationMetabDo <- R6Class(
       #' @param k600 
       #'    Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
       #'    depending on saturation deficit. Units are per day.
+      #' @param alphag
+      #'    Model parameter for the turnover rate due to groundwater in per day
       #' @param airPressure 
       #'    Barometric pressure.
       #'    Units must be consistent with the units of the optional standard air pressure
@@ -121,7 +131,7 @@ OneStationMetabDo <- R6Class(
       #'    Initial DO concentration at the beginning of the evaluation period.
       #'    Units depend on the unit conversion factor for DO saturation.
       #'    Default value of the unit conversion factor results in
-      #'    units of micomolarity per day.
+      #'    units of micomolarity.
       #' @param time 
       #'    Vector of times associated with temperature and PAR data.
       #'    POSIXct vector or character vector in a standard text format
@@ -140,6 +150,8 @@ OneStationMetabDo <- R6Class(
       #'    calculation of total PAR from PAR data vector)
       #' @param stdAirPressure
       #'    The standard air pressure in the desired units. Defaults to 760 mm Hg.
+      #' @param gwC
+      #'    Concentration of oxygen in inflowing groundwater in micromolarity
       #' @param doSatCalculator
       #'    The DO saturation calculator used to estimate DO saturation concentrations
       #'    at a given temperature and air pressure. 
@@ -157,7 +169,8 @@ OneStationMetabDo <- R6Class(
          ratioDoCfix = 1.0,
          dailyER, 
          ratioDoCresp = -1.0,
-         k600, 
+         k600,
+         alphag = NA,
          airPressure, 
          initialDO, 
          time, 
@@ -165,6 +178,7 @@ OneStationMetabDo <- R6Class(
          par, 
          parTotal = NA, 
          stdAirPressure = 760,
+         gwC = NA,
          doSatCalculator = DoSatCalculator$new(
             stdAirPressure = stdAirPressure
          ),
@@ -178,10 +192,12 @@ OneStationMetabDo <- R6Class(
          self$dailyER <- dailyER;
          self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
+         self$alphag <- alphag;
          self$airPressure <- airPressure;
          self$initialDO <- initialDO;
          self$temp <- temp;
          self$par <- par;
+         self$gwC <- gwC;
          self$doSatCalculator <- doSatCalculator;
          self$kSchmidtFunc <- kSchmidtFunc;
          self$timePOSIX <- as.POSIXct(time);
@@ -300,6 +316,10 @@ OneStationMetabDo <- R6Class(
                self$output$doConsumption[i - 1] + 
                self$dt[i - 1] * self$output$k[i - 1] * 
                   (self$output$doSat[i - 1] - self$output$do[i - 1]);
+            if (!is.na(self$alphag)) {
+               self$output$do[i] <- self$output$do[i] +
+                  self$dt[i - 1] * self$alphag * (self$gwC - self$output$do[i - 1])
+            }
          }
          
          return(self$output);

@@ -50,6 +50,10 @@ TwoStationMetabDo <- R6Class(
       #'   Model parameter for the gas exchange rate
       k600 = NULL, 
       
+      #' @field alphag
+      #'   Model parameter for the turnover rate due to groundwater
+      alphag = NULL, 
+      
       #' @field airPressure
       #'   Air pressure
       airPressure = NULL,
@@ -110,6 +114,10 @@ TwoStationMetabDo <- R6Class(
       #'   passing downstream station
       downstreamDOSat = NULL,
       
+      #' @field gwC
+      #'   Concentration of oxygen in inflowing groundwater
+      gwC = NULL, 
+      
       #' @field doSatCalculator
       #'   Function to use for do saturation calculations
       doSatCalculator = NULL,
@@ -142,6 +150,8 @@ TwoStationMetabDo <- R6Class(
       #' @param k600 
       #'    Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
       #'    depending on saturation deficit. Units are per day.
+      #' @param alphag
+      #'    Model parameter for the turnover rate due to groundwater in per day
       #' @param airPressure 
       #'    Barometric pressure.
       #'    Units must be consistent with the units of the optional standard air pressure
@@ -179,6 +189,8 @@ TwoStationMetabDo <- R6Class(
       #' @param stdAirPressure
       #'    The standard air pressure in the desired units. 
       #'    Defaults to 760 mm Hg.
+      #' @param gwC
+      #'    Concentration of oxygen in inflowing groundwater in micromolarity
       #' @param doSatCalculator
       #'    The DO saturation calculator used to estimate DO saturation concentrations
       #'    at a given temperature and air pressure. 
@@ -197,6 +209,7 @@ TwoStationMetabDo <- R6Class(
          dailyER, 
          ratioDoCresp = -1.0,
          k600,
+         alphag = NA,
          airPressure, 
          upstreamTime, 
          upstreamTemp,
@@ -208,6 +221,7 @@ TwoStationMetabDo <- R6Class(
          par = 0.5 * (upstreamPAR + downstreamPAR),
          parTotal = NA,
          stdAirPressure = 760,
+         gwC = NA,
          doSatCalculator = DoSatCalculator$new(
             stdAirPressure = stdAirPressure
          ),
@@ -220,11 +234,13 @@ TwoStationMetabDo <- R6Class(
          self$dailyER <- dailyER;
          self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
+         self$alphag <- alphag;
          self$airPressure <- airPressure;
          self$upstreamPAR <- upstreamPAR;
          self$downstreamPAR <- downstreamPAR;
          self$par <- par;
          self$parTotal <- parTotal; 
+         self$gwC <- gwC;
          
          # Time attribute should be POSIXct
          self$upstreamTimePOSIX <- as.POSIXct(upstreamTime);
@@ -346,21 +362,26 @@ TwoStationMetabDo <- R6Class(
             (0.5 * (upstreamDODeficit + self$downstreamDOSat));
          
          # Calculate the downstream DO concentration 
-         downstreamDO <- 
-            (
-               self$upstreamDO +
-                  doProduction +
-                  doConsumption +
-                  doEquilibration
-            ) / 
-            (
-               1 + (0.5 * (residenceTime * k))
-            );
+         numerator <-
+            self$upstreamDO +
+            doProduction +
+            doConsumption +
+            doEquilibration;
+         denominator <-
+            1 + (0.5 * (residenceTime * k));
          
+         if (!is.na(self$alphag)) {
+            gwMixing <- residenceTime * self$alphag * 
+               (self$gwC - (0.5 * self$upstreamDO));
+            numerator <- numerator + gwMixing;
+            denominator <- denominator + 
+               0.5 * (residenceTime * self$alphag);
+         }
+
          self$output <- data.frame(
             time = self$downstreamTimePOSIX,
             residenceTime = residenceTime,
-            do = downstreamDO,
+            do = numerator / denominator,
             cFixation = cFixation,
             cRespiration = cRespiration,
             doProduction = doProduction,
@@ -368,6 +389,10 @@ TwoStationMetabDo <- R6Class(
             doEquilibration = doEquilibration,
             k = k
          );
+         
+         if (!is.na(self$alphag)) {
+            self$output$gwMixing <- gwMixing;
+         }
          return(self$output);
       },
       

@@ -27,6 +27,8 @@ Defaults to 1.}
 
 \item{\code{k600}}{Model parameter for the gas exchange rate}
 
+\item{\code{alphag}}{Model parameter for the turnover rate due to groundwater}
+
 \item{\code{airPressure}}{Air pressure}
 
 \item{\code{par}}{Vector of photosynthetically active radiation at the simulated times}
@@ -59,6 +61,8 @@ passing downstream station}
 \item{\code{downstreamDOSat}}{The saturation concentration of DO of a parcel of water when
 passing downstream station}
 
+\item{\code{gwC}}{Concentration of oxygen in inflowing groundwater}
+
 \item{\code{doSatCalculator}}{Function to use for do saturation calculations}
 
 \item{\code{kSchmidtFunc}}{Function to use to adjust gas exchange for temperature}
@@ -90,6 +94,7 @@ Construct a new instance of the class
   dailyER,
   ratioDoCresp = -1,
   k600,
+  alphag = NA,
   airPressure,
   upstreamTime,
   upstreamTemp,
@@ -101,6 +106,7 @@ Construct a new instance of the class
   par = 0.5 * (upstreamPAR + downstreamPAR),
   parTotal = NA,
   stdAirPressure = 760,
+  gwC = NA,
   doSatCalculator = DoSatCalculator$new(stdAirPressure = stdAirPressure),
   kSchmidtFunc = kSchmidtDO
 )}\if{html}{\out{</div>}}
@@ -127,6 +133,8 @@ Defaults to -1.}
 
 \item{\code{k600}}{Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
 depending on saturation deficit. Units are per day.}
+
+\item{\code{alphag}}{Model parameter for the turnover rate due to groundwater in per day}
 
 \item{\code{airPressure}}{Barometric pressure.
 Units must be consistent with the units of the optional standard air pressure
@@ -164,6 +172,8 @@ Default is the integration of the PAR data provided over the evaluation period.}
 
 \item{\code{stdAirPressure}}{The standard air pressure in the desired units. 
 Defaults to 760 mm Hg.}
+
+\item{\code{gwC}}{Concentration of oxygen in inflowing groundwater in micromolarity}
 
 \item{\code{doSatCalculator}}{The DO saturation calculator used to estimate DO saturation concentrations
 at a given temperature and air pressure. 

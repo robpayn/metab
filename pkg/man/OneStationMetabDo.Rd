@@ -27,6 +27,8 @@ Defaults to 1.}
 
 \item{\code{k600}}{Model parameter for the gas exchange rate}
 
+\item{\code{alphag}}{Model parameter for the turnover rate due to groundwater}
+
 \item{\code{airPressure}}{Air pressure}
 
 \item{\code{initialDO}}{Initial dissolved oxygen concentration}
@@ -40,6 +42,8 @@ Defaults to 1.}
 \item{\code{par}}{Vector of photosynthetically active radiation at the simulated times}
 
 \item{\code{parTotal}}{Total PAR over the simulation period}
+
+\item{\code{gwC}}{Concentration of oxygen in inflowing groundwater}
 
 \item{\code{dt}}{Vector of time steps}
 
@@ -73,6 +77,7 @@ Constructs a new instance of the class
   dailyER,
   ratioDoCresp = -1,
   k600,
+  alphag = NA,
   airPressure,
   initialDO,
   time,
@@ -80,6 +85,7 @@ Constructs a new instance of the class
   par,
   parTotal = NA,
   stdAirPressure = 760,
+  gwC = NA,
   doSatCalculator = DoSatCalculator$new(stdAirPressure = stdAirPressure),
   kSchmidtFunc = kSchmidtDO
 )}\if{html}{\out{</div>}}
@@ -105,6 +111,8 @@ Defaults to -1.}
 \item{\code{k600}}{Influence of atmospheric gas exchange on oxygen concentration as a first-order rate
 depending on saturation deficit. Units are per day.}
 
+\item{\code{alphag}}{Model parameter for the turnover rate due to groundwater in per day}
+
 \item{\code{airPressure}}{Barometric pressure.
 Units must be consistent with the units of the optional standard air pressure
 argument.
@@ -113,7 +121,7 @@ Default value for standard air pressure results in units of mm Hg.}
 \item{\code{initialDO}}{Initial DO concentration at the beginning of the evaluation period.
 Units depend on the unit conversion factor for DO saturation.
 Default value of the unit conversion factor results in
-units of micomolarity per day.}
+units of micomolarity.}
 
 \item{\code{time}}{Vector of times associated with temperature and PAR data.
 POSIXct vector or character vector in a standard text format
@@ -132,6 +140,8 @@ Must be the same length as the time vector.}
 calculation of total PAR from PAR data vector)}
 
 \item{\code{stdAirPressure}}{The standard air pressure in the desired units. Defaults to 760 mm Hg.}
+
+\item{\code{gwC}}{Concentration of oxygen in inflowing groundwater in micromolarity}
 
 \item{\code{doSatCalculator}}{The DO saturation calculator used to estimate DO saturation concentrations
 at a given temperature and air pressure. 
