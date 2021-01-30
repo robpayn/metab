@@ -22,6 +22,7 @@ A prediction extractor allowing dissolved oxygen and carbo
 \out{<details open ><summary>Inherited methods</summary>}
 \itemize{
 \item \out{<span class="pkg-link" data-pkg="inferno" data-topic="PredictionExtractor" data-id="initialize">}\href{../../inferno/html/PredictionExtractor.html#method-initialize}{\code{inferno::PredictionExtractor$initialize()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="inferno" data-topic="PredictionExtractor" data-id="setModel">}\href{../../inferno/html/PredictionExtractor.html#method-setModel}{\code{inferno::PredictionExtractor$setModel()}}\out{</span>}
 }
 \out{</details>}
 }

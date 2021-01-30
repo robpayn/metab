@@ -30,6 +30,7 @@ to include in the estimation.}
 \if{html}{
 \out{<details open ><summary>Inherited methods</summary>}
 \itemize{
+\item \out{<span class="pkg-link" data-pkg="inferno" data-topic="ParameterTranslator" data-id="setModel">}\href{../../inferno/html/ParameterTranslator.html#method-setModel}{\code{inferno::ParameterTranslator$setModel()}}\out{</span>}
 }
 \out{</details>}
 }

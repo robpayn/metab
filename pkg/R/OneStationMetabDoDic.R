@@ -3,6 +3,7 @@
 # R oxygen code for importing the proper classes used in this file
 # Used for robust namespace management in R packages
 #' @importFrom R6 R6Class
+#' @importFrom dictools CarbonateEq
 NULL
 
 # Class OneStationMetabDoDic (R6) ####
