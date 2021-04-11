@@ -41,6 +41,10 @@ OneStationMetabDo <- R6Class(
       #'   Units of micromoles per liter per day.
       dailyER = NULL, 
       
+      q10 = NULL,
+      refTemp = NULL,
+      refER = NULL,
+      
       #' @field ratioDoCresp
       #'    Ratio of DO molecules consumed relative to carbon atoms respired.
       #'    Defaults to 1.
@@ -167,7 +171,10 @@ OneStationMetabDo <- R6Class(
       (
          dailyGPP, 
          ratioDoCfix = 1.0,
-         dailyER, 
+         dailyER,
+         q10 = NA,
+         refTemp = NA,
+         refER = NA,
          ratioDoCresp = -1.0,
          k600,
          alphag = NA,
@@ -190,6 +197,9 @@ OneStationMetabDo <- R6Class(
          self$dailyGPP <- dailyGPP;
          self$ratioDoCfix <- ratioDoCfix;
          self$dailyER <- dailyER;
+         self$q10 <- q10;
+         self$refTemp <- refTemp;
+         self$refER <- refER;
          self$ratioDoCresp <- ratioDoCresp;
          self$k600 <- k600; 
          self$alphag <- alphag;
@@ -286,7 +296,14 @@ OneStationMetabDo <- R6Class(
          
          cFixation <- self$dailyGPP * 
             ((self$par * self$dt) / self$parTotal);
-         cRespiration <- self$dailyER * self$dt;
+         
+         if (is.na(self$q10)) {
+            erRate <- self$dailyER;
+         } else {
+            erRate <- self$refER * self$q10^((self$temp - self$refTemp) / 10);
+         }
+         
+         cRespiration <- erRate * self$dt;
          self$output <- data.frame(
             time = self$timePOSIX,
             do = rep(as.numeric(NA), doPredLength),
