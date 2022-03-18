@@ -1,0 +1,133 @@
+---
+title: "Lagrange test"
+author: "Rob Payn"
+date: "3/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load test data
+
+Load some realistic data for a river. This will load two R6 signal objects representing the upstream conditions (signalIn) and downstream conditions (signalOut) for parcels of water traveling a reach (Lagrangian reference frame). These signals have already been interpoloated such that the time context represents the travel time of the reach.
+
+```{r fig.width = 5, fig.height = 12}
+
+library(metab);
+
+load(file = "../test/lagrange/01_input/2014-09-13/signal.RData");
+
+par(mfrow = c(3, 1));
+
+plot(
+   x = signalIn$time,
+   y = signalIn$getVariable("do")
+);
+plot(
+   x = signalIn$time,
+   y = signalIn$getVariable("temp")
+);
+plot(
+   x = signalIn$time,
+   y = signalIn$getVariable("par")
+);
+
+```
+
+
+
+```{r fig.width = 5, fig.height = 8}
+
+par(mfrow = c(2, 1));
+
+plot(
+   x = signalOut$time,
+   y = signalOut$getVariable("temp")
+);
+plot(
+   x = signalOut$time,
+   y = signalOut$getVariable("par")
+);
+
+```
+
+## Model Lagranian DO transformation over the reach
+
+Build the model R6 object with bare minimum arguments. 
+
+Note that GPP and ER my models are based on metrics of concentration change per time rather than flux, with concentration as molarity. Use of molarity makes it easier to do stoichiometric calculations without mistakes. A flux can always be calculated later by multiplying the concentration per time by the average depth. For example, GPP in this model is is 610 moles of carbon fixed per liter per day. The default stoichiometric relationship determining the effect on oxygen is plus 1. 
+
+The k600 is the gas exchange rate (not the velocity) in units of per day. The air pressure is by default in mm Hg, but that can be adjusted by giving the standard air pressure at sea level in any units desired.
+
+```{r}
+
+rModel <- TwoStationMetabDo$new(
+   dailyGPP = 610,
+   dailyER = 275,
+   k600 = 19.5,
+   airPressure = 638,
+   upstreamTime = signalIn$time,
+   upstreamTemp = signalIn$getVariable("temp"),
+   upstreamPAR = signalIn$getVariable("par"),
+   upstreamDO = signalIn$getVariable("do"),
+   downstreamTime = signalOut$time,
+   downstreamTemp = signalOut$getVariable("temp"),
+   downstreamPAR = signalOut$getVariable("par")
+);
+
+```
+
+Run the model to populate the output attribute. The output attribute is a dataframe with the incremental calculations from the model along with the downstream DO simulation.
+
+This model uses a Crank-Nicolson time finite approximation applied over a single time step representing the transport time for each parcel.
+
+```{r}
+
+rModel$run();
+
+```
+
+Plot the modeled downstream oxygen concentration and the change in oxygen concentration over the reach for each parcel.
+
+```{r fig.width = 5, fig.height = 8}
+
+par(mfrow = c(2, 1));
+
+plot(
+   x = rModel$output$time,
+   y = rModel$output$do
+);
+points(
+   x = signalIn$time,
+   y = signalIn$getVariable("do"),
+   pch = 2,
+   cex = 0.5
+)
+
+legend(
+   x = "topleft",
+   bty = "n",
+   legend = c(
+      "upstream",
+      "downstream"
+   ),
+   pch = c(
+      2,
+      1
+   ),
+   pt.cex = c(
+      0.5,
+      1
+   )
+)
+
+deltaDO <- rModel$output$do - signalIn$getVariable("do");
+
+plot(
+   x = rModel$output$time,
+   y = deltaDO
+);
+
+```
